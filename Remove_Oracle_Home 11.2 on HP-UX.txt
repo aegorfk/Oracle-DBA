@@ -1,0 +1,62 @@
+###########################################################################################
+Требуется удалить неиспользуемый ORACLE_HOME=/oracle/product/11.2.0.3.7 на сервере host
+###########################################################################################
+Гайд: http://isu.ifmo.ru/docs/doc102/install.102/b19068/remove_oracle_sw.htm 
+
+
+
+
+
+// Смотрим переменные окружения set:
+$ set
+ORACLE_HOME=/oracle/product/11.2.0.3.7
+ 
+
+
+// To identify all instances associated with the Oracle home that you want to remove, enter the following command:
+
+$ more /etc/oratab
+
+# This file is used by ORACLE utilities.  It is created by root.sh
+# and updated by the Database Configuration Assistant when creating
+# a database.
+# A colon, ':', is used as the field terminator.  A new line terminates
+# the entry.  Lines beginning with a pound sign, '#', are comments.
+# Entries are of the form:
+# $ORACLE_SID:$ORACLE_HOME:<N|Y>:
+# The first and second fields are the system identifier and home
+# directory of the database respectively.  The third filed indicates
+# to the dbstart utility that the database should , "Y", or should not,
+# "N", be brought up at system boot time.
+# Multiple entries with the same $ORACLE_SID are not allowed.
+# wpslog:/oracle/product/11.2.0.2:N
+# *:/oracle/product/9.2.0:N
+# *:/oracle/product/9.2.0:N
+# huntlt2:/oracle/product/10.2.0:Y
+huntlt2:/oracle/product/11.2.0.3.7:Y
+gba0lt1:/oracle/product/11.2.0.2:Y
+gba0lt2:/oracle/product/11.2.0.2:Y
+wpslog:/oracle/product/11.2.0.2:Y
+slcflog1:/oracle/product/11.2.0.2:Y
+hunt18:/oracle/product/11.2.0.3.72:Y
+
+
+// Настраиваем X-терминал: 
+
+env | grep DISP
+$ export DISPLAY=IP.v4.0:0.0
+$ xclock
+
+$ $ORACLE_HOME/oui/bin/runInstaller
+return
+yes
+
+
+// Применяем 
+$ export ORACLE_HOME=/u01/app/oracle/product/11.2.0.3.7/db_1 
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================

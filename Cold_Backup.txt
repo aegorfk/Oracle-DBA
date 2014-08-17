@@ -1,0 +1,174 @@
+Пример клонирования базы на примере : 
+Создать новую базу  db2 по аналогии  c  db.
+
+0 шаг :
+
+Останавливаем все веб-приложения, использующие базу !!!!!!!!!!!!!!!
+
+
+1.	Останавливаем базу db.
+
+1.1 Экспортируем SID базы       
+
+export ORACLE_SID=db
+
+
+1.2 Заходим в  SQLPLUS   как  sysdba  
+
+sqlplus '/as sysdba'
+
+
+1.3 Удостоверяем в том что это нужная нам база  
+
+SQL> select name from v$database;
+
+
+1.4 Проверяем статус базы
+
+SQL> select status from v$instance;
+
+
+1.5 Если база поднята, то опускаем ее
+
+SQL> shutdown immediate;
+
+2.	Перенос файлов базы db в каталог db2.
+
+2.1 Создаем на диске каталог  db2, например  /oradata/db2   
+
+mkdir  /oradata/db2  
+
+2.2 Копируем из него все файлы *.dbf , кроме temp01.dbf
+
+2.3 Копируем инициализационный файл db, называемый initdb.ora и переименовываем его в initdb2.ora и меняем в нем соответствующие пути и настройки для базы db2. Обычно эти файлы находяться в  $ORACLE_HOME/dbs 
+
+2.4 Повторяем структуру каталогов базы db  $ORACLE_HOME/admin .
+Каталоги должны быть пустые.
+
+mkdir  $ORACLE_HOME/admin/db2
+
+mkdir  $ORACLE_HOME/admin/db2/bdump
+mkdir  $ORACLE_HOME/admin/db2/cdump
+mkdir  $ORACLE_HOME/admin/db2/udump
+mkdir  $ORACLE_HOME/admin/db2/scripts
+
+2.5 Экспортируем  SID создаваемой базы и создаем файл паролей       
+
+export ORACLE_SID=db2
+
+$ORACLE_HOME/bin/orapwd file=$ORACLE_HOME/dbs/orapwdb2  password=mann
+
+3.	Прогон необходимых скриптов
+
+3.1 Выполняем скрипт для создания контрольных файлов базы - create_contrfile_db2.sql со следующим содержанием:
+**************************************************************************
+STARTUP NOMOUNT
+CREATE CONTROLFILE SET DATABASE «db2» RESETLOGS  NOARCHIVELOG
+--  SET STANDBY TO MAXIMIZE PERFORMANCE
+    MAXLOGFILES 10
+    MAXLOGMEMBERS 3
+    MAXDATAFILES 100
+    MAXINSTANCES 1
+    MAXLOGHISTORY 226
+LOGFILE
+  GROUP 1 '/oradata/db2/redo01.log'  SIZE 10M,
+  GROUP 2 '/oradata/db2/redo02.log'  SIZE 10M,
+  GROUP 3 '/oradata/db2/redo03.log'  SIZE 10M
+-- STANDBY LOGFILE
+DATAFILE
+  '/oradata/db2/system01.dbf',
+  '/oradata/db2/undotbs01.dbf',
+  '/oradata/db2/drsys01.dbf',
+  '/oradata/db2/indx01.dbf',
+  '/oradata/db2/tools01.dbf',
+  '/oradata/db2/users01.dbf',
+  '/oradata/db2/xdb01.dbf',
+  '/oradata/db2/gaasdata01.dbf',
+  '/oradata/db2/gaasdata02.dbf',
+  '/oradata/db2/statspack01.dbf'
+CHARACTER SET UTF8; 
+
+Скрипт выполняем командами :
+
+sqlplus '/as sysdba'
+
+SQL> @<путь к файлу со скриптом>
+  
+
+3.2 Выполняем следующие команды :
+SQL> recover database using backup controlfile until cancel;
+auto
+
+SQL> recover database using backup controlfile until cancel;
+cancel;
+
+SQL> alter database open resetlogs;
+
+
+
+В следующей команде меняем нужным образом GLOBAL_NAME :
+
+SQL> ALTER DATABASE RENAME GLOBAL_NAME TO SOK0FT1.MOSCOW.ALFAINTRA.NET;
+
+SQL> ALTER TABLESPACE TEMP ADD TEMPFILE '/oradata/factft4/data/temp01.dbf' SIZE 10M AUTOEXTEND ON  NEXT 1M MAXSIZE UNLIMITED;
+
+4. (только для приложений использующих workpoint) 
+Выполняем команду :
+
+SQL> delete from WORKPOINTALFA.WP_MONITOR;
+SQL> commit;
+
+
+5. Редактирование файлов listener.ora и tnsnames.ora НА СЕРВЕРЕ
+
+1) listener.ora
+
+Добавляем 
+
+
+SID_LIST_LISTENER =
+  (SID_LIST =
+    (SID_DESC =
+      (SID_NAME = PLSExtProc)
+      (ORACLE_HOME = /oracle/product/9.2)
+      (PROGRAM = extproc)
+    )
+    (SID_DESC =
+	(GLOBAL_DBNAME = CCD0FT3)
+	(ORACLE_HOME = /oracle/product/9.2)
+	(SID_NAME = db2)
+     )
+    )
+
+2) tnsnames.ora
+
+db2 =
+(DESCRIPTION =
+ (ADDRESS_LIST =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = host)(PORT = 1521))
+    )
+    (CONNECT_DATA =
+	(SID = db2)
+	(SERVER = DEDICATED)
+    )
+ )
+
+Перезагрузка LISTENERA
+
+
+$ lsnrctl
+
+LSNRCTL for HPUX: Version 9.2.0.8.0 - Production on 28-AUG-2007 12:47:37
+
+Copyright (c) 1991, 2006, Oracle Corporation.  All rights reserved.
+
+Welcome to LSNRCTL, type "help" for information.
+
+LSNRCTL> reload
+Connecting to (DESCRIPTION=(ADDRESS=(PROTOCOL=IPC)(KEY=EXTPROC)))
+The command completed successfully
+LSNRCTL> exit
+
+
+
+База готова.

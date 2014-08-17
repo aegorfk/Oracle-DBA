@@ -1,0 +1,257 @@
+slxdbpt: slxdbtest -> ltbl8603: slxdbdev
+
+Система (CI): S.CRMKIBLT1
+Описание работ: Необходимо обновить БД ltbl8603 сервера slxdbpt с ленты HPDPR. Резервную копию на HPDPR можно найти по спецификации slxdbnr_slxdbnr.
+В обновлённой БД необходимо создать 2 табличных пространства с правами на создание в них таблиц и индексов для пользователя sysdba:
+SLX_KEEP_DATA
+SLX_KEEP_INDEX
+Также необходимо сделать пароли равными логинам, записанным в верхнем регистре для пользователей:
+SLXT, LOANMANAGER, IMPORT, EXPORT, SOK_USER, OPICS_USER
+
+
+
+1) Проверить размер бд (slxdbtest, slxdbpt)
+2) Проверить размер бд (slxdbdev,ltbl8603) и свободный размер на сервере ltbl8603
+3) Если места на сервере ltbl8603 хватает (с учетом удаления бд), то продолжаем.
+4) Остановить бд (slxdbdev,ltbl8603).
+5) Удалить бд (slxdbdev,ltbl8603).
+6) создать трейс контрольного файла бд (slxdbtest, slxdbpt)
+7) Остановить  бд (slxdbtest, slxdbpt)
+8) Запустить копирование бд (slxdbtest, slxdbpt) на сервер ltbl8603 (scp)
+9) Восстановить бд (slxdbdev,ltbl8603)
+10) Запустить бд (slxdbtest, slxdbpt)
+
+
+
+Проверить размер бд (slxdbtest, сервер slxdbpt)
+
+Смотрим через initfile (из среды вытаскиваем адрес), где содержится база: по строке *.control_files='/oradata/slxptts/slxdbtestc ..
+Переходим на эту директорияю и выполняем du -sk *
+
+cd /oradata/slxptts/slxdbtest/data
+
+SQL> SELECT file_name FROM dba_data_files;
+
+slxdbpt Oracle 11.2.0.2 $ du -sk * data
+
+
+13430   admin
+1       arch
+119480  cf
+262511521       data
+1536046 redo
+37950920        temp_files
+262511521       data
+
+
+302131504       slxdbtest
+
+// Проверить размер бд (slxdbdev,сервер ltbl8603) и свободный размер на сервере ltbl8603
+
+cd /oradata/slxdbdev
+du - sk *
+
+
+
+
+// Если места на сервере ltbl8603 хватает (с учетом удаления бд), то продолжаем.
+хватает 700 гб для 300 гб
+
+
+// Остановить бд (slxdbdev,ltbl8603).
+
+остановлена
+
+// Удалить бд (slxdbdev,ltbl8603). Почистить внутри директории, где лежит бд все файлы
+
+
+// создать трейс контрольного файла бд (slxdbtest, slxdbpt)
+ 
+mkdir /oradata/backups/slxdbtest/cold.2014-08-11
+alter database backup controlfile to trace as '/oradata/backups/slxdbtest/cold.2014-08-11/crcf.trc';
+
+
+// Остановить  бд (slxdbtest, slxdbpt)
+SQL> shutdown immediate
+
+
+// запустить копирование бд (slxdbtest, slxdbpt) на сервер ltbl8603 (scp)
+
+from /oradata/slxptts/slxdbtest                        to                                      /oradata/slxdbdev
+$ find . -name "*.dbf"
+
+cd /oradata/slxptts/slxdbtest/data/
+
+
+scp -p slx_data00.dbf slx_data01.dbf slx_data02.dbf slx_data03.dbf slx_data04.dbf slx_index01.dbf oracle@ltbl8603:/oradata/slxdbdev/data/
+scp -p slx_index02.dbf slx_index03.dbf  slx_index04.dbf sysaux01.dbf system01.dbf ts_undo01.dbf users01.dbf xdb01.dbf oracle@ltbl8603:/oradata/slxdbdev/data/
+scp -p slx_keep_data01.dbf slx_keep_data02.dbf slx_keep_index01.dbf slx_keep_index02.dbf oracle@ltbl8603:/oradata/slxdbdev/data/
+
+
+
+
+cd /oradata/slxptts/slxdbtest/temp_files/
+scp -p slx_temp01.dbf oracle@ltbl8603:/oradata/slxdbdev/temp_files/
+scp -p slx_temp02.dbf oracle@ltbl8603:/oradata/slxdbdev/temp_files/
+scp -p temp01.dbf oracle@ltbl8603:/oradata/slxdbdev/temp_files/
+
+
+
+
+// Копируем по файлам:
+// Восстановить бд (slxdbdev,ltbl8603)
+// Запустить бд (slxdbtest, slxdbpt)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+cat > crcf.sql
+
+CREATE CONTROLFILE REUSE SET DATABASE "slxdbdev" RESETLOGS  NOARCHIVELOG
+MAXLOGFILES 16
+MAXLOGMEMBERS 3
+MAXDATAFILES 100
+MAXINSTANCES 8
+MAXLOGHISTORY 4228
+LOGFILE
+  GROUP 1 '/oradata/slxdbdev/redo/redo01.log'  SIZE 100M BLOCKSIZE 1024,
+  GROUP 2 '/oradata/slxdbdev/redo/redo02.log'  SIZE 100M BLOCKSIZE 1024,
+  GROUP 3 '/oradata/slxdbdev/redo/redo03.log'  SIZE 100M BLOCKSIZE 1024,
+  GROUP 4 '/oradata/slxdbdev/redo/redo04.log'  SIZE 100M BLOCKSIZE 1024,
+  GROUP 5 '/oradata/slxdbdev/redo/redo05.log'  SIZE 100M BLOCKSIZE 1024
+DATAFILE
+  '/oradata/slxdbdev/data/system01.dbf',
+  '/oradata/slxdbdev/data/sysaux01.dbf',
+  '/oradata/slxdbdev/data/ts_undo01.dbf',
+  '/oradata/slxdbdev/data/users01.dbf',
+  '/oradata/slxdbdev/data/xdb01.dbf',
+  '/oradata/slxdbdev/data/slx_data00.dbf',
+  '/oradata/slxdbdev/data/slx_data01.dbf',
+  '/oradata/slxdbdev/data/slx_data02.dbf',
+  '/oradata/slxdbdev/data/slx_data03.dbf',
+  '/oradata/slxdbdev/data/slx_data04.dbf',
+  '/oradata/slxdbdev/data/slx_index01.dbf',
+  '/oradata/slxdbdev/data/slx_index02.dbf',
+  '/oradata/slxdbdev/data/slx_index03.dbf',
+  '/oradata/slxdbdev/data/slx_index04.dbf',
+  '/oradata/slxdbdev/data/slx_keep_data01.dbf',
+  '/oradata/slxdbdev/data/slx_keep_data02.dbf',
+  '/oradata/slxdbdev/data/slx_keep_index01.dbf',
+  '/oradata/slxdbdev/data/slx_keep_index02.dbf'
+CHARACTER SET AL32UTF8
+;
+
+
+
+*.__db_cache_size=8G
+*.__java_pool_size=16777216
+*.__large_pool_size=33554432
+#*.__pga_aggregate_target=1073741824
+#*.__sga_target=8589934592
+*.__shared_io_pool_size=0
+*.__shared_pool_size=1795162112
+*.__streams_pool_size=0
+*._ktb_debug_flags=8
+*._small_table_threshold=999999
+*.diagnostic_dest='/oradata/slxdbdev/admin'
+*.aq_tm_processes=0
+*.archive_lag_target=600
+*.audit_file_dest='/oradata/slxdbdev/admin/adump'
+*.audit_trail='db'
+*.compatible='11.2.0.4.0'
+*.control_files='/oradata/slxdbdev/cf/control01.ctl','/oradata/slxdbdev/cf/control02.ctl','/oradata/slxdbdev/cf/control03.ctl'
+*.db_block_size=8192
+*.db_domain=''
+*.db_file_multiblock_read_count=32
+#*.db_keep_cache_size=512M
+*.db_keep_cache_size=5G
+*.db_name='slxdbdev'
+*.db_unique_name='slxdbdev'
+*.db_writer_processes=4
+*.diagnostic_dest='/oracle'
+*.instance_name='slxdbdev'
+*.job_queue_processes=20
+*.log_archive_dest='/oradata/slxdbdev/arch'
+*.log_archive_format='slx_%r_%t_%s.arc'
+*.nls_language='AMERICAN'
+*.open_cursors=1000
+#*.pga_aggregate_target=3G
+*.processes=5000
+*.remote_login_passwordfile='EXCLUSIVE'
+#*.sga_max_size=8589934592
+#*.sga_target=8589934592
+*.memory_max_target=17G
+*.memory_target=17G
+*.standby_file_management='auto'
+*.undo_tablespace='TS_UNDO'
+*.dispatchers='(PROTOCOL=TCP) (SERVICE=slxdbdevXDB)'
+_small_table_threshold = 999999
+cursor_sharing = force
+
+
+
+
+export ORACLE_SID=slxdbdev
+sqlplus '/as sysdba'
+SQL> startup nomount
+SQL> @/oradata/slxdbdev/crcf.sql
+SQL> alter  database open   resetlogs;
+
+
+
+Проверка undo:
+
+select * from v$tablespace;
+
+
+
+
+ALTER TABLESPACE TEMP ADD TEMPFILE '/oradata/slxdbdev/temp_files/slx_temp01.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M MAXSIZE UNLIMITED;
+ALTER TABLESPACE TEMP ADD TEMPFILE '/oradata/slxdbdev/temp_files/slx_temp02.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M MAXSIZE UNLIMITED;
+ALTER TABLESPACE TEMP ADD TEMPFILE '/oradata/slxdbdev/temp_files/temp01.dbf.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M MAXSIZE UNLIMITED;
+
+
+
+###################################################################################################################################
+В обновлённой БД необходимо создать 2 табличных пространства с правами на создание в них таблиц и индексов для пользователя sysdba:
+SLX_KEEP_DATA
+SLX_KEEP_INDEX
+###################################################################################################################################
+
+// Смотрим табличные пространства(база в состоянии nomount):
+select * from dba_data_files;
+
+
+ALTER USER sysdba QUOTA unlimited ON SLX_KEEP_DATA;
+ALTER USER sysdba QUOTA unlimited ON SLX_KEEP_INDEX;
+
+#################################################
+Также необходимо сделать пароли равными логинам
+записанным в верхнем регистре
+для пользователей:
+SLXT
+LOANMANAGER
+EXPORT
+SOK_USER
+OPICS_USER
+################################################
+
+
+select * from all_users;
+alter user SLXT identified by SLXT; 
+alter user LOANMANAGER identified by LOANMANAGER; 
+alter user EXPORT identified by EXPORT; 
+alter user SOK_USER identified by SOK_USER; 
+alter user OPICS_USER identified by OPICS_USER;
+
+

@@ -1,0 +1,183 @@
+############################################################
+ЗАДАЧА: Установить Oracle Home 11.2.0.4 на сервер host
+############################################################
+Гайд: http://docs.oracle.com/cd/E11882_01/install.112/e24342/toc.htm
+
+
+
+// Проверили, сколько RAm:
+
+$ /usr/contrib/bin/machinfo  | grep -i Memory
+Memory: 24545 MB (23.97 GB) (Minimum: 1 GB of RAM)
+
+
+//Посмотрели, сколько Swap space, хватает
+$ /usr/sbin/swapinfo -a
+
+
+Проверка сводобного места (нужно 7 гигов)
+bdf /tmp
+
+
+Filesystem          kbytes    used   avail %used Mounted on
+/dev/vg00/lvol4    2097152   42904 2039352    2% /tmp
+
+
+Версия ОС:
+uname -a
+HP-UX ftgdcrdb B.11.31 U ia64 0733572403 unlimited-user license
+
+
+/usr/sbin/swlist -l bundle |grep QPK
+
+QPK1009_ADD           B.2011.09.02   QPK1009_ADDON Patch Bundle
+QPKAPPS               B.11.31.1203.375 Applications Patches for HP-UX 11i v3, March 2012
+QPKBASE               B.11.31.1203.375 Base Quality Pack Bundle for HP-UX 11i v3, March 2012
+
+
+/usr/sbin/swlist -l patch | grep PHCO_43503
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+################################################################################
+################################################################################
+Установить ORACLE_HOME 11.2.0.4
+################################################################################
+################################################################################
+
+
+
+
+5 Creating Required Operating System Groups and Users
+################################################################################
+as oracle@host:
+
+
+
+
+    The Oracle Inventory group (oinstall)
+
+    The OSDBA group (dba)
+
+    The Oracle software owner (oracle)
+
+
+
+$ id oracle
+uid=555(oracle) gid=555(dba)
+
+
+//Проверяем настройки
+$ cat /var/opt/oracle/oraInst.loc     //oraInst.loc and oratab - default location is /var/opt/oracle
+inventory_loc=/oracle/oraInventory   
+inst_group=dba
+
+
+//Если его нет, то создаем сами 
+$ cd /var/opt
+$ mkdir oracle
+// проверяем свое вхождение в группу на исполнение:
+$ id oracle
+uid=109(oracle) gid=105(oinstall) 
+
+$ /usr/sbin/usermod -g oinstall -g dba oracle
+
+$ id oracle
+uid=109(oracle) gid=105(oinstall) group=106(dba)
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+7 Creating Required Directories
+################################################################################
+as oracle@host:
+
+
+mkdir -p /oracle/product/11.2.0.4.1    //не выдавать ошибок если существует, создавать
+                                       //родительские каталоги если необходимо
+mkdir /oracle/oraInventory
+
+
+cat > /var/opt/oracle/oraInst.loc
+inventory_loc=/oracle/oraInventory
+inst_group=oinstall
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+8 Configuring the oracle User's Environment
+################################################################################
+
+
+echo $DISPLAY
+echo $SHELL            //The location of the current user's shell program.
+
+
+env | grep DISPLAY
+env | grep SHELL
+env | grep ORA
+
+
+xclock
+
+
+// If you determined that the /tmp directory has less than 1 GB of free disk space,
+
+$ bdf /tmp
+
+Filesystem          kbytes    used   avail %used Mounted on
+/dev/vg00/lvol4    2097152   42928 2039328    2% /tmp
+
+
+// Enter commands similar to the following to set the ORACLE_BASE and ORACLE_SID environment variables:
+// Bourne, Bash, or Korn shell:
+
+export ORACLE_BASE=/oracle
+
+unset ORACLE_HOME
+unset TNS_ADMIN
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+10 Installing Oracle Database
+################################################################################
+
+
+cd /oradata/stages/db
+unzip p13390677_112040_HPUX-IA64_1of7.zip
+unzip p13390677_112040_HPUX-IA64_2of7.zip
+
+//Если нет установщика, то перетаскиваем с другого сервера: scp /usr/local/bin/unzip root@server1:/usr/local/bin/
+//Запускать тогда тоже следует явно:
+//usr/local/bin/unzip p10404530_112030_HPUX-IA64_2of7.zip
+
+
+cd /oradata/stages/db/database/
+./runInstaller
+
+/oracle/product/11.2.0.4.1/root.sh
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================

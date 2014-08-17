@@ -1,0 +1,109 @@
+экспорт партиций (за май):
+RM.SM3_REG_LOG:SMQ_201405,
+RM.SM3_RES_LOG:SMS_201405,
+RM.RM_RES_LOG:RMS_201405
+
+
+сервер host база bd
+echo $SHELL 
+
+
+
+cd /oradata/backups
+touch expdpscript.sh
+chmod a+rw expdpscript.sh
+
+export ORACLE_SID=bd
+sqlplus '/as sysdba'
+SQL> SELECT DISTINCT TABLE_NAME FROM ALL_PART_TABLES;
+
+
+SQL> select partition_name from all_tab_partitions where table_name='SM3_REG_LOG';
+
+SMQ_201405
+
+
+SQL> select partition_name from all_tab_partitions where table_name='SM3_RES_LOG';
+
+SMS_201405
+
+
+
+SQL> select partition_name from all_tab_partitions where table_name='RM_RES_LOG';
+
+RMS_201405
+
+
+
+TABLES=[schema_name.]table_name[:partition_name]
+
+SQL> create directory dump1 as '/oradata/backups/';
+SQL> GRANT read, write ON DIRECTORY dump1 TO system;
+SQL> SELECT directory_path FROM dba_directories WHERE directory_name = 'DATA_PUMP_DIR';
+
+
+SQL> select count (*) from RM.SM3_REQ_LOG partition (SMQ_201405);
+0 rows selected !!!
+
+
+
+expdp system/cisco DIRECTORY=dump1 DUMPFILE=expdat.dmp TABLES=RM.SM3_REG_LOG:SMQ_201405,RM.SM3_RES_LOG:SMS_201405,RM.RM_RES_LOG:RMS_201405 logfile=expdpRM.log
+
+
+
+UDE-12504: operation generated ORACLE error 12504
+ORA-12504: TNS:listener was not given the SERVICE_NAME in CONNECT_DATA
+
+
+
+cd /oracle/product/11.2.0.2/network/admin
+
+DB =                                                                                                                               
+    (DESCRIPTION =                                                                                                                     
+            (ADDRESS_LIST =                                                                                                            
+                (ADDRESS = (PROTOCOL = TCP)(HOST = HOST)(PORT = 1521))                                                             
+            )                                                                                                                         
+            (CONNECT_DATA =                                                                                                            
+                (SERVICE_NAME = db)                                                                                                
+                (SERVER = DEDICATED)                                                                                                   
+                (SID = db)                                                                                                         
+            )                                                                                                                          
+    )
+
+
+
+
+
+tnsping db
+
+
+
+После подправки:
+
+
+
+Connected to: Oracle Database 11g Enterprise Edition Release 11.2.0.2.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+Starting "SYSTEM"."SYS_EXPORT_TABLE_01":  system/******** DIRECTORY=dump1 DUMPFILE=expdat.dmp TABLES=RM.SM3_REG_LOG:SMQ_201405,RM.SM3_RES_LOG:SMS_201405,RM.RM_RES_LOG:RMS_201405 logfile=expdpRM.log
+Estimate in progress using BLOCKS method...
+Processing object type TABLE_EXPORT/TABLE/TABLE_DATA
+Total estimation using BLOCKS method: 0 KB
+ORA-39166: Object RM.SM3_REG_LOG was not found.
+ORA-39166: Object RM.SM3_RES_LOG was not found.
+ORA-39166: Object RM.RM_RES_LOG was not found.
+ORA-31655: no data or metadata objects selected for job
+Job "SYSTEM"."SYS_EXPORT_TABLE_01" completed with 4 error(s) at 12:12:48
+
+SQL> grant imp_full_database to system;
+После выполнения команды:
+
+
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+ORA-39001: invalid argument value
+ORA-39000: bad dump file specification
+ORA-31641: unable to create dump file "/oradata/backups/expdat.dmp"
+ORA-27038: created file already exists
+Additional information: 1
+
+
+expdp system/cisco DIRECTORY=dump1 DUMPFILE=exp_dat.dmp TABLES=RM.SM3_REG_LOG:SMQ_201405,RM.SM3_RES_LOG:SMS_201405,RM.RM_RES_LOG:RMS_201405 logfile=expdpRM1.log

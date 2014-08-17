@@ -1,0 +1,37 @@
+// Applying Patches using OPatch utility
+
+$ export ORACLE_SID=slxdbdev
+
+
+$ sqlplus '/as sysdba'
+
+SQL> shutdown immediate;
+
+SQL> exit
+
+$ lsnrctl stop listener
+
+$ cd /oradata/product/11.2.0.4.1/OPatch/12949905
+
+$ /oradata/product/11.2.0.4.1/OPatch/opatch version
+OPatch Version: 11.2.0.3.6
+
+$ /oradata/product/11.2.0.4.1/OPatch/opatch apply
+
+
+Do you wish to remain uninformed of security issues ([Y]es, [N]o) [N]: y
+
+Patch 12949905 successfully applied
+Log file location: /oradata/product/11.2.0.4.1/cfgtoollogs/opatch/12949905_Aug_12_2014_13_19_12/apply2014-08-12_13-19-11PM_1.log
+
+OPatch succeeded.
+
+$ cd /oradata/product/11.2.0.4.1/network/admin/
+$ lsnrctl start listener
+
+
+
+
+
+$ export ORACLE_SID=slxdbdev
+$ sqlplus '/as sysdba'

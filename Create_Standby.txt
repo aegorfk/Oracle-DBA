@@ -1,0 +1,1269 @@
+
+
+
+Used docs
+####################################################################################################
+Creating a Physical Standby Database (Doc ID 1475344.1)
+http://docs.oracle.com/cd/B19306_01/server.102/b14239/manage_ps.htm
+11g Using Snapshot Standby Database. (Doc ID 443720.1)
+####################################################################################################
+
+
+
+
+# PRIMARY: xxx
+####################################################################################################
+as oracle@server1:
+
+
+
+
+# STANDBY: xxx
+####################################################################################################
+as oracle@server1:
+
+
+
+
+# Environment Information
+####################################################################################################
+as oracle@server1:
+
+OS: HP-UX 11.31 Itanium
+Hostname (Primary): server1
+Hostname (Standby): server1
+Database Version: 11.2.0.4.0
+DB_NAME (Primary and Standby): KIB0FT3
+SID/DB_UNIQUE_NAME (Primary): slxdbprim
+SID/DB_UNIQUE_NAME (Standby): slxdbstby
+Listener Port (Primary and Standby): 1521
+Primary Database Files Location: /oradata/slxptts/prim/data
+Standby Database Files Location: /oradata/slxptts/stby/data
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# Prerequisites and Assumptions to get started
+####################################################################################################
+as oracle@slxdbpt:
+
+- There already exists a Primary Database you want to create your Standby Database for
+- Primary Database is in ARCHIVELOG-Mode and local Archiving is using Fast Recovery Area
+- FORCE LOGGING is enabled on the Primary Database
+- The Primary Database is using a SPFILE
+- On the Standby Site ORACLE_HOME is installed using the same Oracle Release and Patchlevel
+- The Platform of the Standby Database is the same as the Primary Site or a supported Combination as per Note 413484.1
+- There is Network Connectivity between the Primary and Standby System
+- Listener is configured and running on the Primary and Standby Site
+- We are creating a Standby Database using default Log Transport Services in Maximum Performance Mode
+
+
+
+
+
+
+####################################################################################################
+####################################################################################################
+Preparing the Environment and Standby Instance
+####################################################################################################
+####################################################################################################
+
+
+
+
+
+# PRIMARY: There already exists a Primary Database you want to create your Standby Database for
+####################################################################################################
+
+
+
+
+# PRIMARY:
+Primary Database is in ARCHIVELOG-Mode and local Archiving is using Fast Recovery Area
+FORCE LOGGING is enabled on the Primary Database
+####################################################################################################
+as oracle@server1:
+
+
+export ORACLE_SID=prim
+sqlplus "/ as sysdba"
+
+SQL> shutdown immediate;
+SQL> startup mount;
+SQL> alter database archivelog;
+SQL> alter database force logging;
+SQL> alter database open;
+
+SQL> archive log list;
+
+Database log mode              Archive Mode
+Automatic archival             Enabled
+Archive destination            /oradata/slxptts/slxdbprim/arch
+Oldest online log sequence     1346
+Next log sequence to archive   1350
+Current log sequence           1350
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: The Primary Database is using a SPFILE
+####################################################################################################
+as oracle@server1:
+
+export ORACLE_SID=prim
+sqlplus "/ as sysdba"
+SQL> create spfile from pfile;
+SQL> shutdown immediate;
+SQL> startup;
+SQL> show parameter spfile;
+
+NAME                                 TYPE
+------------------------------------ --------------------------------
+VALUE
+------------------------------
+spfile                               string
+
+/oracle/product/11.2.0.4.1/dbs/spfileprim.ora
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: The Platform of the Standby Database is the same as the Primary Site or a supported Combination as per Note 413484.1
+####################################################################################################
+as oracle@server1:
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: There is Network Connectivity between the Primary and Standby System
+####################################################################################################
+as oracle@server1:
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: Listener is configured and running on the Primary and Standby Site
+####################################################################################################
+as oracle@server1:
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Listener is configured and running on the Primary and Standby Site
+####################################################################################################
+as oracle@server1:
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: We are creating a Standby Database using default Log Transport Services in Maximum Performance Mode
+####################################################################################################
+as oracle@server1:
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: Create TNS-Alias to resolve the Standby Database later. The TNS-Alias to resolve the Primary and Standby Database must be present in the Primary and Standby Database TNSNAMES.ORA. Here it looks like that:
+####################################################################################################
+as oracle@server1:
+
+vi $ORACLE_HOME/network/admin/tnsnames.ora
+
+prim =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = server1)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = prim)
+    )
+  )
+
+
+stby =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = server1)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = stby)
+    )
+  )
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Create TNS-Alias to resolve the Standby Database later. The TNS-Alias to resolve the Primary and Standby Database must be present in the Primary and Standby Database TNSNAMES.ORA. Here it looks like that:
+####################################################################################################
+as oracle@server1:
+
+prim =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = server1)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = prim)
+    )
+  )
+
+
+stby =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = server1)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = stby)
+    )
+  )
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Create Folders in ADMIN- and ORADATA-Folders to host the Database Files and Dumpfiles (can use $ORACLE_BASE/admin of the Primary as a Reference which Folders to create Р typically those are the AadumpХ- and AdpdumpХ-Folders)
+####################################################################################################
+as oracle@server1:
+
+$ cd $ORACLE_BASE/admin
+$ mkdir stby
+$ cd bstby
+$ mkdir adump
+$ mkdir dpdump
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: Create a PFILE from the Primary PFILE in the Format 'init<Standby_SID>.ora'
+####################################################################################################
+as oracle@server1:
+
+export ORACLE_SID=prim
+sqlplus "/ as sysdba"
+SQL> create pfile='/tmp/initstby.ora' from spfile;
+
+cp -p /tmp/initstby.ora $ORACLE_HOME/dbs/
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: Set the following Initialization Parameters on the Primary Database
+####################################################################################################
+as oracle@server1:
+
+export ORACLE_SID=prim
+sqlplus "/ as sysdba"
+
+SQL> ALTER SYSTEM SET DB_RECOVERY_FILE_DEST_SIZE = 2G SCOPE=BOTH;
+SQL> alter system set LOG_ARCHIVE_DEST='' scope=both;
+SQL> ALTER SYSTEM SET DB_RECOVERY_FILE_DEST = '/oradata/slxptts/prim/fra' SCOPE=BOTH;
+SQL> alter system set log_archive_dest_1 = 'location=USE_DB_RECOVERY_FILE_DEST' scope=both;
+SQL> alter system set log_archive_dest_2 = 'service=stby async
+SQL> valid_for=(ONLINE_LOGFILES,PRIMARY_ROLE) db_unique_name=stby' scope=both;
+SQL> alter system set log_archive_dest_state_2 = 'defer' scope=both;
+SQL> alter system set log_archive_config ='dg_config=(prim,stby)' scope=both;
+SQL> alter system set log_archive_max_processes = 8 scope=both;
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: Restart db
+####################################################################################################
+as oracle@serever1:
+
+export ORACLE_SID=prim
+sqlplus "/ as sysdba"
+
+SQL> shutdown immediate;
+SQL> startup;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Modify the following Initialization Parameters in the PFILE (initstby_db.ora) for the Standby Database we created before
+####################################################################################################
+as oracle@serever1:
+
+vi $ORACLE_HOME/dbs/initstby.ora
+
+
+log_archive_dest_1 = 'location=USE_DB_RECOVERY_FILE_DEST'
+log_archive_config = 'dg_config=(prim,stby)'
+log_archive_max_processes = 8
+fal_server = 'prim'
+log_file_name_convert = '/oradata/slxptts/prim', '/oradata/slxptts/stby'
+db_file_name_convert = '/oradata/slxptts/prim', '/oradata/slxptts/stby'
+db_unique_name = 'stby'
+*.db_recovery_file_dest_size=2147483648
+*.db_recovery_file_dest='/oradata/slxptts/stby/fra'
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# xxx
+####################################################################################################
+as oracle@serever1:
+
+cd /oradata/slxptts/stby
+
+mkdir -p \
+./data \
+./redo \
+./admin \
+./admin/adump \
+./cf \
+./arch \
+./fra \
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: Copy prepared Фinitstby_db.oraХ together with the Passwordfile of the Primary Database (orapwprim_db in $ORACLE_HOME/dbs) to the Standby Site and place both into Ф$ORACLE_HOME/dbsХ-Folder. Then you have to rename the Passwordfile to match with the Standby SID
+####################################################################################################
+as oracle@slxdbpt:
+
+cd $ORACLE_HOME/dbs
+
+cp -p orapwprelive orapwprim
+cp -p orapwprelive orapwstby
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+####################################################################################################
+####################################################################################################
+Create the Physical Standby Database
+####################################################################################################
+####################################################################################################
+
+
+
+
+
+# PRIMARY:
+####################################################################################################
+as oracle@serever1:
+
+SQL> shutdown immediate;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY:
+####################################################################################################
+as oracle@serever1:
+
+$ cp /oracle/oradata/tst1/*.dbf /oracle/oradata/tst2/
+
+SQL> startup
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: We can create the Standby Controlfile since the Backup is complete (either Hot or Cold Backup)
+####################################################################################################
+as oracle@serever1:
+
+export ORACLE_SID=prim
+sqlplus "/ as sysdba"
+SQL> alter database create standby controlfile as '/tmp/control01.ctl';
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Once the Datafiles are there we can set the Environment and first mount the Standby Database
+####################################################################################################
+as oracle@serever1:
+
+cp -p /tmp/control01.ctl /oradata/slxptts/stby/cf/control01.ctl
+cp -p /tmp/control01.ctl /oradata/slxptts/stby/cf/control02.ctl
+cp -p /tmp/control01.ctl /oradata/slxptts/stby/cf/control03.ctl
+
+
+
+
+
+export ORACLE_SID=stby
+sqlplus "/ as sysdba"
+
+SQL> startup mount
+
+SQL> select * from v$instance;
+
+INSTANCE_NUMBER INSTANCE_NAME
+--------------- ----------------
+HOST_NAME
+----------------------------------------------------------------
+VERSION           STARTUP_T STATUS       PAR    THREAD# ARCHIVE LOG_SWITCH_WAIT
+----------------- --------- ------------ --- ---------- ------- ---------------
+LOGINS     SHU DATABASE_STATUS   INSTANCE_ROLE      ACTIVE_ST BLO
+---------- --- ----------------- ------------------ --------- ---
+              1 stby
+slxdbpt
+11.2.0.4.0        30-APR-14 MOUNTED      NO           1 STARTED
+ALLOWED    NO  ACTIVE            PRIMARY_INSTANCE   NORMAL    NO
+
+
+SQL> select name from v$datafile;
+
+NAME
+--------------------------------------------------------------------------------
+/oradata/slxptts/stby/data/system01.dbf
+/oradata/slxptts/]stby/data/sysaux01.dbf
+/oradata/slxptts/stby/data/slx_data02.dbf
+/oradata/slxptts/stby/data/users01.dbf
+/oradata/slxptts/stby/data/slx_index01.dbf
+/oradata/slxptts/stby/data/slx_data01.dbf
+/oradata/slxptts/stby/data/ts_undo01.dbf
+/oradata/slxptts/stby/data/slx_data03.dbf
+/oradata/slxptts/stby/data/slx_data04.dbf
+/oradata/slxptts/stby/data/slx_index02.dbf
+/oradata/slxptts/stby/data/xdb01.dbf
+
+11 rows selected.
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+####################################################################################################
+####################################################################################################
+Post-Creation Steps to make the Data Guard Environment operational
+####################################################################################################
+####################################################################################################
+
+
+
+
+
+# STANDBY: First of all we should now add Standby RedoLogs to the new created Standby Database to collect the current Redo arriving from the Primary Database.
+####################################################################################################
+as oracle@serever1:
+
+SQL> set linesize 100
+SQL> col member format a50
+
+SQL> select * from v$logfile;
+
+    GROUP# STATUS  TYPE    MEMBER                                             IS_
+---------- ------- ------- -------------------------------------------------- ---
+         5         ONLINE  /oradata/slxptts/stby/redo/redo05.log         NO
+         4         ONLINE  /oradata/slxptts/stby/redo/redo04.log         NO
+         3         ONLINE  /oradata/slxptts/stby/redo/redo03.log         NO
+         2         ONLINE  /oradata/slxptts/stby/redo/redo02.log         NO
+         1         ONLINE  /oradata/slxptts/stby/redo/redo01.log         NO
+
+
+SQL> select * from v$log;
+
+    GROUP#    THREAD#  SEQUENCE#      BYTES  BLOCKSIZE    MEMBERS ARC STATUS           FIRST_CHANGE#
+---------- ---------- ---------- ---------- ---------- ---------- --- ---------------- -------------
+FIRST_TIM NEXT_CHANGE# NEXT_TIME
+--------- ------------ ---------
+         4          1       1354  314572800       1024          1 NO  CURRENT             4334561449
+30-APR-14   2.8147E+14
+
+         3          1       1353  314572800       1024          1 YES ACTIVE              4334560312
+30-APR-14   4334561449 30-APR-14
+
+
+SQL> alter database add standby logfile group 6 ('/oradata/slxptts/stby/redo/redo_stby01.log') size 314572800;
+SQL> alter database add standby logfile group 7 ('/oradata/slxptts/stby/redo/redo_stby02.log') size 314572800;
+SQL> alter database add standby logfile group 8 ('/oradata/slxptts/stby/redo/redo_stby03.log') size 314572800;
+SQL> alter database add standby logfile group 9 ('/oradata/slxptts/stby/redo/redo_stby04.log') size 314572800;
+SQL> alter database add standby logfile group 10 ('/oradata/slxptts/stby/redo/redo_stby05.log') size 314572800;
+SQL> alter database add standby logfile group 11 ('/oradata/slxptts/stby/redo/redo_stby06.log') size 314572800;
+
+
+SQL> select * from v$standby_log;
+
+SQL> select group#, status from v$standby_log;
+
+    GROUP# STATUS
+---------- ----------
+         6 UNASSIGNED
+         7 UNASSIGNED
+         8 UNASSIGNED
+         9 UNASSIGNED
+        10 UNASSIGNED
+        11 UNASSIGNED
+----------
+STARTED : ???
+DONE    : ???====================================================================================================
+
+
+
+
+
+# PRIMARY: Enable Log Transport Services on the Primary Database
+####################################################################################################
+as oracle@server1:
+
+SQL> archive log list;
+
+Database log mode              Archive Mode
+Automatic archival             Enabled
+Archive destination            USE_DB_RECOVERY_FILE_DEST
+Oldest online log sequence     1351
+Next log sequence to archive   1355
+Current log sequence           1355
+
+
+SQL> alter system set log_archive_dest_state_2 = 'enable' scope=both;
+SQL> alter system switch logfile;
+
+
+archive log list;
+Database log mode              Archive Mode
+Automatic archival             Enabled
+Archive destination            USE_DB_RECOVERY_FILE_DEST
+Oldest online log sequence     1353
+Next log sequence to archive   1357
+Current log sequence           1357
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: To verify if Standby RedoLogs get allocated on the Standby Database and so Log Transport Services are running query v$standby_log on the Standby Database
+####################################################################################################
+as oracle@server1:
+
+SQL> select group#, status from v$standby_log;
+
+    GROUP# STATUS
+---------- ----------
+         6 UNASSIGNED
+         7 UNASSIGNED
+         8 ACTIVE
+         9 UNASSIGNED
+        10 UNASSIGNED
+        11 UNASSIGNED
+
+6 rows selected.
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Assuming that Log Transport Services are running now, we can finally start Log Apply Services (Managed Recovery)
+####################################################################################################
+as oracle@server1:
+
+SQL> archive log list;
+Database log mode              Archive Mode
+Automatic archival             Enabled
+Archive destination            USE_DB_RECOVERY_FILE_DEST
+Oldest online log sequence     1353
+Next log sequence to archive   0
+Current log sequence           1357
+
+
+
+SQL> alter database recover managed standby database using current logfile disconnect;
+
+
+Query v$managed_standby to monitor the Progress of the Managed Recovery:
+SQL> select * from v$managed_standby where process = 'MRP0';
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+####################################################################################################
+####################################################################################################
+Optional additional Steps
+####################################################################################################
+####################################################################################################
+
+Basically we have now an active Data Guard Configuration. Depending on your Requirements you can proceed performing those Steps:
+- Create an SPFILE from the current PFILE on the Standby Database
+- Enable Flashback to be able to Flashback this Database (eg. instead of the Primary Database to get historical Data or avoid having to recreate the Standby Data in Case of a RESETLOGS-Operation on the Primary Database)
+- Setup and enable a Data Guard Broker Configuration Р the Data Guard Broker is an Offset to Data Guard in order to make monitoring and administering of a Data Guard Configuration much easier. Note that using a Data Guard Configuration with Cloud Control (formerly Grid Control) requires the Data Guard Broker
+- Raise Protection Mode to Maximum Availability or Maximum Protection
+- Proactive setup Log Transport Services from Standby Database to the Primary and create Standby RedoLogs on the Primary for Switchover Purposes is used
+- Open the Standby Database READ ONLY and restart Managed Recovery (Active Data Guard). Note that this requires Licensing of the ФActive Data GuardХ-Option. However you can open the Standby Database open READ ONLY without Apply Services; this does not require this Option to be licensed
+- Setup Fast-Start Failover (requires the Data Guard Broker, too)
+- Add additional Standby Database(s)
+- Turn the just created Physical Standby Database into a Logical Standby Database
+
+
+
+
+
+# STANDBY: Create an SPFILE from the current PFILE on the Standby Database
+####################################################################################################
+as oracle@server1:
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Enable Flashback to be able to Flashback this Database (eg. instead of the Primary Database to get historical Data or avoid having to recreate the Standby Data in Case of a RESETLOGS-Operation on the Primary Database)
+####################################################################################################
+as oracle@server1:
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Open the Standby Database READ ONLY and restart Managed Recovery (Active Data Guard). Note that this requires Licensing of the ФActive Data GuardХ-Option. However you can open the Standby Database open READ ONLY without Apply Services; this does not require this Option to be licensed
+####################################################################################################
+as oracle@server1:
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: xxx
+####################################################################################################
+as oracle@server1:
+
+SQL> DROP TABLESPACE ATDATA INCLUDING CONTENTS AND DATAFILES;
+
+SQL> CREATE TABLESPACE ATDATA DATAFILE
+  '/oracle/oradata/tst1/atdata01.dbf' SIZE 10M AUTOEXTEND ON NEXT 10M MAXSIZE UNLIMITED
+LOGGING
+ONLINE
+EXTENT MANAGEMENT LOCAL AUTOALLOCATE
+BLOCKSIZE 8K
+SEGMENT SPACE MANAGEMENT AUTO
+FLASHBACK ON;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: xxx
+####################################################################################################
+as oracle@server1:
+
+SQL> DROP USER AT CASCADE;
+
+CREATE USER AT
+  IDENTIFIED BY at
+  DEFAULT TABLESPACE ATDATA
+  TEMPORARY TABLESPACE TEMP
+  PROFILE DEFAULT
+  ACCOUNT UNLOCK;
+  -- 16 System Privileges for AT
+  GRANT ALTER DATABASE LINK TO AT;
+  GRANT ALTER SESSION TO AT;
+  GRANT CREATE DATABASE LINK TO AT;
+  GRANT CREATE JOB TO AT;
+  GRANT CREATE MATERIALIZED VIEW TO AT;
+  GRANT CREATE PROCEDURE TO AT;
+  GRANT CREATE PUBLIC DATABASE LINK TO AT;
+  GRANT CREATE PUBLIC SYNONYM TO AT;
+  GRANT CREATE SEQUENCE TO AT;
+  GRANT CREATE SESSION TO AT;
+  GRANT CREATE SYNONYM TO AT;
+  GRANT CREATE TABLE TO AT;
+  GRANT CREATE TRIGGER TO AT;
+  GRANT CREATE VIEW TO AT;
+  GRANT DROP PUBLIC DATABASE LINK TO AT;
+  GRANT DROP PUBLIC SYNONYM TO AT;
+  -- 1 Tablespace Quota for AT
+  ALTER USER AT QUOTA UNLIMITED ON ATDATA;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: xxx
+####################################################################################################
+as oracle@server1:
+
+SQL> DROP TABLE AT.T1 CASCADE CONSTRAINTS;
+
+CREATE TABLE AT.T1
+(
+  ID        INTEGER,
+  FULLNAME  VARCHAR2(50 CHAR)
+)
+TABLESPACE ATDATA
+RESULT_CACHE (MODE DEFAULT)
+PCTUSED    0
+PCTFREE    10
+INITRANS   1
+MAXTRANS   255
+STORAGE    (
+            MAXSIZE          UNLIMITED
+            PCTINCREASE      0
+            BUFFER_POOL      DEFAULT
+            FLASH_CACHE      DEFAULT
+            CELL_FLASH_CACHE DEFAULT
+           )
+LOGGING
+NOCOMPRESS
+NOCACHE
+NOPARALLEL
+MONITORING;
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: xxx
+####################################################################################################
+as oracle@server1:
+
+declare
+    i integer := 0;
+    sql_cmd varchar2(255);
+begin
+    for i in 1..100 loop
+        sql_cmd := 'insert into t1 values (' || i || ', ''name' || i || ''' )';
+        execute immediate sql_cmd;
+        dbms_output.put_line(sql_cmd);
+    end loop;
+end;
+/
+
+commit;
+
+
+select * from t1;
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY:
+####################################################################################################
+as oracle@server1:
+
+declare
+    i integer := 0;
+    sql_cmd varchar2(255);
+begin
+    for i in 201..999 loop
+        sql_cmd := 'insert into t1 values (' || i || ', ''name' || i || ''' )';
+        execute immediate sql_cmd;
+        dbms_output.put_line(sql_cmd);
+    end loop;
+end;
+/
+
+commit;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY:
+####################################################################################################
+as oracle@server1:
+
+declare
+    i integer := 0;
+    sql_cmd varchar2(255);
+begin
+    for i in 1000..1999 loop
+        sql_cmd := 'insert into t1 values (' || i || ', ''name' || i || ''' )';
+        execute immediate sql_cmd;
+        dbms_output.put_line(sql_cmd);
+    end loop;
+end;
+/
+
+commit;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY:
+####################################################################################################
+as oracle@server1:
+
+Thu Apr 10 02:20:08 2014
+File #2 added to control file as 'UNNAMED00002' because
+the parameter STANDBY_FILE_MANAGEMENT is set to MANUAL
+The file should be manually created to continue.
+MRP0: Background Media Recovery terminated with error 1274
+Thu Apr 10 02:20:09 2014
+Errors in file /oracle/diag/rdbms/tst2/tst2/trace/tst2_pr00_6973.trc:
+ORA-01274: cannot add datafile '/oracle/oradata/tst1/atdata01.dbf' - file could not be created
+Managed Standby Recovery not using Real Time Apply
+Recovery interrupted!
+Recovery stopped due to failure in applying recovery marker (opcode 17.30).
+Datafiles are recovered to a consistent state at change 2097833 but controlfile could be ahead of datafiles.
+Thu Apr 10 02:20:10 2014
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY:
+####################################################################################################
+as oracle@server1:
+
+SELECT NAME FROM V$DATAFILE;
+
+/oracle/oradata/tst2/system01.dbf
+/oracle/db/12.1.0.1/dbs/UNNAMED00002
+/oracle/oradata/tst2/sysaux01.dbf
+/oracle/oradata/tst2/undotbs01.dbf
+/oracle/oradata/tst2/users01.dbf
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY:
+####################################################################################################
+as oracle@server1:
+
+SQL> ALTER SYSTEM SET STANDBY_FILE_MANAGEMENT=MANUAL;
+
+
+SQL> ALTER DATABASE CREATE DATAFILE '/oracle/db/12.1.0.1/dbs/UNNAMED00002' AS '/oracle/oradata/tst2/atdata01.dbf';
+
+
+SQL> ALTER SYSTEM SET STANDBY_FILE_MANAGEMENT=AUTO;
+SQL> RECOVER MANAGED STANDBY DATABASE DISCONNECT;
+
+
+SQL> SELECT NAME FROM V$DATAFILE;
+
+/oracle/oradata/tst2/system01.dbf
+/oracle/oradata/tst2/atdata01.dbf
+/oracle/oradata/tst2/sysaux01.dbf
+/oracle/oradata/tst2/undotbs01.dbf
+/oracle/oradata/tst2/users01.dbf
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: To open a standby database for read-only access when it is currently performing Redo Apply
+####################################################################################################
+as oracle@server1:
+
+SQL> ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL;
+SQL> ALTER DATABASE OPEN;
+
+SQL> select * from v$instance;
+
+INSTANCE_NUMBER INSTANCE_NAME
+--------------- ----------------
+HOST_NAME
+----------------------------------------------------------------
+VERSION           STARTUP_T STATUS       PAR    THREAD# ARCHIVE LOG_SWITCH_WAIT
+----------------- --------- ------------ --- ---------- ------- ---------------
+LOGINS     SHU DATABASE_STATUS   INSTANCE_ROLE      ACTIVE_ST BLO
+---------- --- ----------------- ------------------ --------- ---
+              1 stby
+slxdbpt
+11.2.0.4.0        30-APR-14 OPEN         NO           1 STARTED
+ALLOWED    NO  ACTIVE            PRIMARY_INSTANCE   NORMAL    NO
+
+
+You do not need to shut down the instance to open it for read-only access.
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: To change the standby database from being open for read-only access to performing Redo Apply
+####################################################################################################
+as oracle@server1:
+
+SQL> shutdown immediate;
+SQL> startup mount;
+SQL> ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Steps to convert Physical Standby Database to the Snapshot Standby Database
+####################################################################################################
+as oracle@server1:
+
+SQL> shutdown immediate;
+SQL> startup mount;
+SQL> ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL;
+SQL> ALTER DATABASE CONVERT TO SNAPSHOT STANDBY;
+SQL> shutdown immediate;
+SQL> startup;
+
+SQL> select open_mode,database_role from v$database;
+
+OPEN_MODE  DATABASE_ROLE
+---------- ----------------
+READ WRITE SNAPSHOT STANDBY
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: Steps to convert the Snapshot Standby Database to the Physical Standby Database
+####################################################################################################
+as oracle@server1:
+
+
+SQL> shutdown immediate;
+SQL> startup mount;
+SQL> ALTER DATABASE CONVERT TO PHYSICAL STANDBY;
+SQL> shutdown immediate;
+SQL> startup mount;
+
+SQL> select open_mode,database_role from v$database;
+
+OPEN_MODE  DATABASE_ROLE
+---------- ----------------
+MOUNTED    PHYSICAL STANDBY
+
+SQL> ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: xxx
+####################################################################################################
+as oracle@server1:
+
+$ cat inittst1.ora
+tst1.__data_transfer_cache_size=0
+tst1.__db_cache_size=188743680
+tst1.__java_pool_size=4194304
+tst1.__large_pool_size=8388608
+tst1.__oracle_base='/oracle'#ORACLE_BASE set from environment
+tst1.__pga_aggregate_target=184549376
+tst1.__sga_target=352321536
+tst1.__shared_io_pool_size=0
+tst1.__shared_pool_size=138412032
+tst1.__streams_pool_size=0
+*.audit_file_dest='/oracle/admin/tst1/adump'
+*.audit_trail='db'
+*.compatible='12.1.0.0.0'
+*.control_files='/oracle/oradata/tst1/control01.ctl','/oracle/oradata/tst1/control02.ctl'
+*.db_block_size=8192
+*.db_domain=''
+*.db_name='tst1'
+*.diagnostic_dest='/oracle'
+*.dispatchers='(PROTOCOL=TCP) (SERVICE=tst1XDB)'
+*.local_listener='LISTENER_TST1'
+*.memory_target=512m
+*.open_cursors=300
+*.processes=300
+*.remote_login_passwordfile='EXCLUSIVE'
+*.undo_tablespace='UNDOTBS1'
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# PRIMARY: xxx
+####################################################################################################
+as oracle@server1:
+
+$ cat spfiletst1.ora
+tst1.__data_transfer_cache_size=0
+tst1.__db_cache_size=100663296
+tst1.__java_pool_size=4194304
+tst1.__large_pool_size=8388608
+tst1.__oracle_base='/oracle'#ORACLE_BASE set from environment
+tst1.__pga_aggregate_target=209715200
+tst1.__sga_target=327155712
+tst1.__shared_io_pool_size=12582912
+tst1.__shared_pool_size=188743680
+tst1.__streams_pool_size=0
+*.audit_file_dest='/oracle/admin/tst1/adump'
+*.audit_trail='db'
+*.compatible='12.1.0.0.0'
+*.control_files='/oracle/oradata/tst1/control01.ctl','/oracle/oradata/tst1/control02.ctl'
+*.db_block_size=8192
+*.db_domain=''
+*.db_name='tst1'
+*.db_recovery_file_dest_size=2147483648
+*.db_recovery_file_dest='/oracle/fra'
+*.diagnostic_dest='/oracle'
+*.dispatchers='(PROTOCOL=TCP) (SERVICE=tst1XDB)'
+*.local_listener='LISTENER_TST1'
+*.log_archive_config='dg_config=(tst1,tst2)'
+*.log_archive_dest_1='location=USE_DB_RECOVERY_FILE_DEST'
+*.log_archive_dest_2='service=tst2 async valid_for=(ONLINE_LOGFILES,PRIMARY_ROLE) db_unique_name=tst2'
+*.log_archive_dest_state_2='enable'
+*.log_archive_max_processes=8
+*.memory_target=512m
+*.open_cursors=300
+*.processes=300
+*.remote_login_passwordfile='EXCLUSIVE'
+*.undo_tablespace='UNDOTBS1'
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+
+
+# STANDBY: xxx
+####################################################################################################
+as oracle@server1:
+
+
+$ cat inittst2.ora
+*.audit_file_dest='/oracle/admin/tst2/adump'
+*.audit_trail='db'
+*.compatible='12.1.0.0.0'
+*.control_files='/oracle/oradata/tst2/control01.ctl','/oracle/oradata/tst2/control02.ctl'
+*.db_block_size=8192
+*.db_domain=''
+*.db_name='tst1'
+*.diagnostic_dest='/oracle'
+*.dispatchers='(PROTOCOL=TCP) (SERVICE=tst2XDB)'
+*.local_listener='LISTENER_TST1'
+*.memory_target=512m
+*.open_cursors=300
+*.processes=300
+*.remote_login_passwordfile='EXCLUSIVE'
+*.undo_tablespace='UNDOTBS1'
+#
+*.db_recovery_file_dest_size=2147483648
+*.db_recovery_file_dest='/oracle/fra'
+*.log_archive_dest_1 = 'location=USE_DB_RECOVERY_FILE_DEST'
+*.log_archive_config = 'dg_config=(tst1,tst2)'
+*.log_archive_max_processes = 8
+*.fal_server = 'tst1'
+*.log_file_name_convert = '/oracle/oradata/tst1', '/oracle/oradata/tst2'
+*.db_file_name_convert = '/oracle/oradata/tst1', '/oracle/oradata/tst2'
+*.db_unique_name = 'tst2'
+*.STANDBY_FILE_MANAGEMENT=AUTO
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+
+
+-- last applied log to standby.
+select sequence#, completion_time from v$archived_log where sequence#=(
+ select max(sequence#) from v$archived_log where applied='YES')
+;

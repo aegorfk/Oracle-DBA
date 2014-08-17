@@ -1,0 +1,1137 @@
+Верхнеуровневый план
+
+Сделать бэкап бд
+Выполнить апгрейд бд
+Апгрейд бд db на сервере host (11.2.0.2 => 11.2.0.4.1)
+
+
+
+stop db
+################################################################################
+as oracle@host:
+
+
+export ORACLE_SID=db
+sqlplus "/ as sysdba"
+
+
+SQL> select * from v$instance;
+
+
+INSTANCE_NUMBER INSTANCE_NAME
+--------------- ----------------
+HOST_NAME
+----------------------------------------------------------------
+VERSION           STARTUP_T STATUS       PAR    THREAD# ARCHIVE LOG_SWITCH_WAIT
+----------------- --------- ------------ --- ---------- ------- ---------------
+LOGINS     SHU DATABASE_STATUS   INSTANCE_ROLE      ACTIVE_ST BLO
+---------- --- ----------------- ------------------ --------- ---
+              1 db
+host
+11.2.0.2.0        22-MAR-14 OPEN         NO           1 STOPPED
+ALLOWED    NO  ACTIVE            PRIMARY_INSTANCE   NORMAL    NO
+
+
+
+SQL> shutdown immediate
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+################################################################################
+as oracle@host:
+
+
+cp -pr /oradata/db/* /oradata/backups/dn/cold.2014-05-23/
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+##################cds##############################################################
+as oracle@host:
+sqlplus '/ as sysdba'
+
+SQL> startup
+SQL> alter database backup controlfile to trace as '/oradata/backups/db/cold.2014-05-23/crcf.trc';
+
+cat /oradata/backups/db/cold.2014-05-23/crcf.trc
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+
+Сделать бэкап бд
+
+################################################################################
+as oracle@host:
+
+
+cp …
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+
+
+################################################################################
+################################################################################
+Выполнить апгрейд бд
+################################################################################
+################################################################################
+
+
+
+Step1
+
+    Log into the system as the owner of the Oracle Database 11g Release 2 (11.2) Oracle Home directory.
+################################################################################
+as oracle@host:
+
+$ cd /oradata/stages/db/          //сделать перемещение логов предыдущих, если есть
+
+$ export ORACLE_SID=db
+
+$ sqlplus '/ as sysdba'
+SQL> spool upgrade_info.log //создает log
+SQL> @utlu112i_8.sql        //запускает скрипт на системные настройки, который находится по адресу $ORACLE_HOME/rdbms/admin
+SQL> spool off              // закрывает лог файл
+
+SQL> show parameter spfile //проверяем, откуда старт. Если что-то вывел, то стартуем с другого места. 
+SQL> //create pfile from spfile; //делаем, если нужно
+
+!mv /oracle/product/11.2.0.2/dbs/spfiledb.ora /oracle/product/11.2.0.2/dbs/spfiledb.ora.old
+
+
+
+*.sga_target=1500M
+*.pga_aggregate_target=500M
+*.java_pool_size=200M
+
+SQL> shutdown immediate
+SQL> startup
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+################################################################################
+as oracle@host:
+
+WARNING: --> Your recycle bin contains 2 object(s).
+.... It is REQUIRED that the recycle bin is empty prior to upgrading
+.... your database.  The command:
+
+
+
+SQL> PURGE DBA_RECYCLEBIN;
+
+
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+################################################################################
+as oracle@host:
+
+WARNING: --> Database contains schemas with objects dependent on DBMS_LDAP package.
+.... Refer to the 11g Upgrade Guide for instructions to configure Network ACLs.
+.... USER APEX_030200 has dependent objects.
+
+
+SQL> SELECT * FROM DBA_DEPENDENCIES
+WHERE referenced_name IN ('UTL_TCP','UTL_SMTP','UTL_MAIL','UTL_HTTP','UTL_INADDR','DBMS_LDAP')
+  AND owner NOT IN ('SYS','PUBLIC','ORDPLUGINS');
+
+
+OWNER                          NAME                           TYPE               REFERENCED_OWNER               REFERENCED_NAME                                                  REFERENCED_TYPE    REFERENCED_LINK_NAME                                                                                                             DEPENDENCY_TYPE
+------------------------------ ------------------------------ ------------------ ------------------------------ ---------------------------------------------------------------- ------------------ -------------------------------------------------------------------------------------------------------------------------------- ---------------
+APEX_030200                    UTL_HTTP                       SYNONYM            SYS                            UTL_HTTP                                                         PACKAGE                                                                                                                                             HARD
+APEX_030200                    UTL_SMTP                       SYNONYM            SYS                            UTL_SMTP                                                         PACKAGE                                                                                                                                             HARD
+APEX_030200                    WWV_FLOW_LDAP                  PACKAGE            PUBLIC                         DBMS_LDAP                                                        SYNONYM                                                                                                                                             HARD
+APEX_030200                    WWV_FLOW_LDAP                  PACKAGE BODY       PUBLIC                         DBMS_LDAP                                                        SYNONYM                                                                                                                                             HARD
+APEX_030200                    WWV_FLOW_CUSTOM_AUTH_LDAP      PACKAGE BODY       PUBLIC                         DBMS_LDAP                                                        SYNONYM                                                                                                                                             HARD
+MDSYS                          SDO_OLS                        PACKAGE BODY       PUBLIC                         UTL_HTTP                                                         SYNONYM                                                                                                                                             HARD
+ORACLE_OCM                     MGMT_DB_LL_METRICS             PACKAGE BODY       PUBLIC                         UTL_INADDR                                                       SYNONYM                                                                                                                                             HARD
+APEX_030200                    WWV_FLOW_DISP_PAGE_PLUGS       PACKAGE BODY       APEX_030200                    UTL_HTTP                                                         SYNONYM                                                                                                                                             HARD
+APEX_030200                    WWV_FLOW_WEB_SERVICES          PACKAGE BODY       APEX_030200                    UTL_HTTP                                                         SYNONYM                                                                                                                                             HARD
+APEX_030200                    WWV_FLOW_PRINT_UTIL            PACKAGE BODY       APEX_030200                    UTL_HTTP                                                         SYNONYM                                                                                                                                             HARD
+APEX_030200                    WWV_FLOW_HELP                  PACKAGE BODY       APEX_030200                    UTL_HTTP                                                         SYNONYM                                                                                                                                             HARD
+APEX_030200                    WWV_FLOW_MAIL                  PACKAGE BODY       APEX_030200                    UTL_SMTP                                                         SYNONYM                                                                                                                                             HARD
+
+ 12 rows selected
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+
+EXECUTE dbms_stats.gather_dictionary_stats;  //запуск сбора статистики по словарю 
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+Step3
+
+Check for the integrity of the source database.
+
+################################################################################
+as oracle@host:
+
+cd /oradata/stages/db
+$ sqlplus '/ as sysdba'
+sql> alter session set nls_language='American'; 
+sql> @dbupgdiag.sql
+/oradata/stages/db
+
+
+
+
+================
+Time Zone version
+================
+
+
+        14
+
+
+================
+Component Status
+================
+
+Comp ID Component                          Status    Version        Org_Version    Prv_Version
+------- ---------------------------------- --------- -------------- -------------- --------------
+AMD     OLAP Catalog                       INVALID   11.2.0.2.0
+APEX    Oracle Application Express         VALID     3.2.1.00.12
+APS     OLAP Analytic Workspace            INVALID   11.2.0.2.0
+CATALOG Oracle Database Catalog Views      VALID     11.2.0.2.0
+CATJAVA Oracle Database Java Packages      VALID     11.2.0.2.0
+CATPROC Oracle Database Packages and Types VALID     11.2.0.2.0
+CONTEXT Oracle Text                        VALID     11.2.0.2.0
+EM      Oracle Enterprise Manager          VALID     11.2.0.2.0
+EXF     Oracle Expression Filter           VALID     11.2.0.2.0
+JAVAVM  JServer JAVA Virtual Machine       VALID     11.2.0.2.0
+ORDIM   Oracle Multimedia                  VALID     11.2.0.2.0
+OWB     OWB                                VALID     11.2.0.2.0
+OWM     Oracle Workspace Manager           VALID     11.2.0.2.0
+RUL     Oracle Rules Manager               VALID     11.2.0.2.0
+SDO     Spatial                            VALID     11.2.0.2.0
+XDB     Oracle XML Database                VALID     11.2.0.2.0
+XML     Oracle XDK                         VALID     11.2.0.2.0
+XOQ     Oracle OLAP API                    VALID     11.2.0.2.0
+
+
+
+
+
+
+
+SQL> select count(*) from dba_objects where status <> 'VALID';
+
+  COUNT(*)
+----------
+         0
+
+1 row selected.
+
+
+
+SQL> set linesize 150
+SQL> set pagesize 150
+SQL> col object_name format a50
+SQL> select owner, object_name, status from dba_objects where status <> 'VALID';
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+Step 4
+
+Deprecated CONNECT Role
+################################################################################
+as oracle@host:
+
+SQL>  SELECT grantee FROM dba_role_privs
+WHERE granted_role = 'CONNECT' and
+grantee NOT IN (
+'SYS', 'OUTLN', 'SYSTEM', 'CTXSYS', 'DBSNMP',
+'LOGSTDBY_ADMINISTRATOR', 'ORDSYS',
+'ORDPLUGINS', 'OEM_MONITOR', 'WKSYS', 'WKPROXY',
+'WK_TEST', 'WKUSER', 'MDSYS', 'LBACSYS', 'DMSYS',
+'WMSYS', 'EXFSYS', 'SYSMAN', 'MDDATA',
+'SI_INFORMTN_SCHEMA', 'XDB', 'ODM');
+
+
+GRANTEE
+------------------------------
+SPATIAL_CSW_ADMIN_USR
+SCOTT
+OWBSYS
+SPATIAL_WFS_ADMIN_USR
+SSAS
+APEX_030200
+
+
+
+SQL> SELECT GRANTEE,PRIVILEGE
+FROM DBA_SYS_PRIVS
+WHERE GRANTEE ='CONNECT';
+
+GRANTEE                        PRIVILEGE
+------------------------------ ----------------------------------------
+CONNECT                        CREATE SESSION
+
+1 row selected.
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+Step 5
+
+Create script for DBLINK (in case the database has to be downgraded again).
+################################################################################
+as oracle@host:
+
+
+SQL> SELECT 'CREATE '||DECODE(U.NAME,'PUBLIC','public ')||'DATABASE LINK '||CHR(10)
+||DECODE(U.NAME,'PUBLIC',Null, 'SYS','',U.NAME||'.')|| L.NAME||chr(10)
+||'CONNECT TO ' || L.USERID || ' IDENTIFIED BY "'||L.PASSWORD||'" USING
+'''||L.HOST||''''
+||chr(10)||';' TEXT
+FROM SYS.LINK$ L, SYS.USER$ U
+WHERE L.OWNER# = U.USER#;
+
+
+no rows selected
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+Step 6
+
+Check for TIMESTAMP WITH TIMEZONE Datatype
+################################################################################
+as oracle@host:
+
+
+SQL> conn / as sysdba        //перезаход, если нужно сделать смену пользователя (сидишь под другим)
+Connected.
+SQL>SELECT version FROM v$timezone_file;
+
+VERSION
+----------
+14
+
+select TZ_VERSION from registry$database;
+
+TZ_VERSION
+----------
+        14
+
+----------
+STARTED : ???
+DONE    : 13:37 ???
+
+
+
+
+Step 7
+
+Check that the National Characterset (NLS_NCHAR_CHARACTERSET) is UTF8 or AL16UTF16.
+
+################################################################################
+as oracle@host:
+
+SQL> select value from NLS_DATABASE_PARAMETERS where parameter = 'NLS_NCHAR_CHARACTERSET';
+
+VALUE
+------------------------------------------------------------------------------------------------------------------------------------------------------
+UTF8
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+Step 8
+
+Optimizer Statistics
+################################################################################
+as oracle@host
+:
+sqlplus / as sysdba
+
+SQL> @check_stale_stats.sql
+
+
+set timing on;
+-------------------------------------------------------------------------------------------------------
+-- SYS schema contains stale statistics use the following to gather the statistics --
+-------------------------------------------------------------------------------------------------------
+
+EXEC DBMS_STATS.GATHER_DICTIONARY_STATS('SYS',OPTIONS=>'GATHER STALE', ESTIMATE_PERCENT  => DBMS_STATS.AUTO_SAMPLE_SIZE, METHOD_OPT => 'FOR ALL COLUMNS SIZE AUTO', CASCADE => TRUE);
+
+-------------------------------------------------------------------------------------------------------
+-- SYSMAN schema contains stale statistics use the following to gather the statistics --
+-------------------------------------------------------------------------------------------------------
+
+EXEC DBMS_STATS.GATHER_DICTIONARY_STATS('SYSMAN',OPTIONS=>'GATHER STALE', ESTIMATE_PERCENT  => DBMS_STATS.AUTO_SAMPLE_SIZE, METHOD_OPT => 'FOR ALL COLUMNS SIZE AUTO', CASCADE => TRUE);
+-- There are no stale statistics in WMSYS schema.
+
+//если есть EXES, выполнить эти скрипты (так и начинаются)
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+ВЫПОЛНЯЕМЫЕ СКРИПТЫ:
+
+EXEC DBMS_STATS.GATHER_DICTIONARY_STATS('OLAPSYS',OPTIONS=>'GATHER STALE', ESTIMATE_PERCENT  => DBMS_STATS.AUTO_SAMPLE_SIZE, METHOD_OPT => 'FOR ALL COLUMNS SIZE AUTO', CASCADE => TRUE);
+ 
+
+EXEC DBMS_STATS.GATHER_DICTIONARY_STATS('SYS',OPTIONS=>'GATHER STALE', ESTIMATE_PERCENT  => DBMS_STATS.AUTO_SAMPLE_SIZE, METHOD_OPT => 'FOR ALL COLUMNS SIZE AUTO', CASCADE => TRUE);
+
+
+EXEC DBMS_STATS.GATHER_DICTIONARY_STATS('SYSMAN',OPTIONS=>'GATHER STALE', ESTIMATE_PERCENT  => DBMS_STATS.AUTO_SAMPLE_SIZE, METHOD_OPT => 'FOR ALL COLUMNS SIZE AUTO', CASCADE => TRUE);
+
+
+
+
+Step 12
+
+This optional check is introduced to spot any logical corruption in underlying objects and their dependencies.
+
+
+################################################################################
+as oracle@host:
+
+cd /oradata/stages/db
+
+SQL> Set verify off
+SQL> Set space 0
+SQL> Set line 120
+SQL> Set heading off
+SQL> Set feedback off
+SQL> Set pages 1000
+SQL> Spool analyze.sql
+
+SQL> SELECT 'Analyze cluster "'||cluster_name||'" validate structure cascade;'
+FROM dba_clusters
+WHERE owner='SYS'
+UNION
+
+SQL> SELECT 'Analyze table "'||table_name||'" validate structure cascade;'
+FROM dba_tables
+WHERE owner='SYS'
+AND partitioned='NO'
+AND (iot_type='IOT' OR iot_type is NULL)
+UNION
+
+SQL> SELECT 'Analyze table "'||table_name||'" validate structure cascade into invalid_rows;'
+FROM dba_tables
+WHERE owner='SYS'
+AND partitioned='YES';
+
+SQL> spool off
+
+
+
+
+ПРЕДВАРИТЕЛЬНО ПОДПРАВИТЬ ФАЙЛ analyze.sql, убрать 1 и последюю строку
+
+
+
+$ sqlplus "/ as sysdba"
+
+SQL> @$ORACLE_HOME/rdbms/admin/utlvalid.sql  
+
+ERROR at line 1:
+ORA-00955: name is already used by an existing object
+
+
+SQL> @analyze.sql
+
+////////потому что запустила скрипт, не подправив сперва Onalyze.sql//////////
+/////SP2-0734: unknown command beginning "SQL> SELEC..." - rest of line ignored.
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+Step 13
+
+Before upgrading Oracle Database, you must wait until all materialized views have completed refreshing and check that replication is stopped.
+################################################################################
+as oracle@host:
+
+
+
+SQL> select distinct(trunc(last_refresh)) from dba_snapshot_refresh_times;
+
+
+
+(TRUNC(LA
+---------
+10-SEP-12
+
+
+SQL> select s.obj#,o.obj#,s.containerobj#,lastrefreshdate,pflags,xpflags,o.name,o.owner#, bitand(s.mflags, 8) from obj$ o, sum$ s
+where o.obj# = s.obj# and o.type# = 42 AND bitand(s.mflags, 8) = 8;
+
+no rows selected
+
+----------
+STARTED : ???
+DONE    : 13:56 ???
+
+
+Step 14
+
+Ensure that no files need media recovery and that no files are in backup mode.
+
+################################################################################
+as oracle@host:
+
+SQL> SELECT * FROM v$recover_file;
+
+no rows selected
+
+
+
+SQL> SELECT * FROM v$backup WHERE status != 'NOT ACTIVE';
+
+
+no rows selected
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+Step 15
+
+Password protected roles.
+
+################################################################################
+as oracle@host:
+
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+Step 16
+
+Resolve outstanding distributed transactions prior to the upgrade.
+
+################################################################################
+as oracle@host:
+
+SQL> select * from dba_2pc_pending;
+
+
+
+no rows selected
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+Step 17
+
+To check if a standby database exists, issue the following query:
+
+################################################################################
+as oracle@host:
+
+SQL> SELECT SUBSTR(value,INSTR(value,'=',INSTR(UPPER(value),'SERVICE'))+1)
+FROM v$parameter
+WHERE name LIKE 'log_archive_dest%' AND UPPER(value) LIKE 'SERVICE%';
+
+
+no rows selected
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+
+Step 18
+
+Disable all batch and cron jobs.
+
+################################################################################
+as oracle@host:
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+Step 19
+
+Ensure the users SYS and SYSTEM have 'SYSTEM' as their default tablespace.
+################################################################################
+as oracle@host:
+
+SQL> SELECT username, default_tablespace
+     FROM dba_users
+     WHERE username in ('SYS','SYSTEM');
+
+
+USERNAME                       DEFAULT_TABLESPACE
+------------------------------ ------------------------------
+SYSTEM                         SYSTEM
+SYS                            SYSTEM
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+Step 20
+
+Ensure that if the aud$ table exists that it is in the SYS schema and in the SYSTEM tablespace.
+
+################################################################################
+as oracle@host:
+
+SQL> SELECT owner,tablespace_name
+     FROM dba_tables
+     WHERE table_name='AUD$';
+
+OWNER                          TABLESPACE_NAME
+------------------------------ ------------------------------
+SYS                            SYSTEM
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+Step 21
+
+Check whether database has any externally authenticated SSL users.
+
+################################################################################
+as oracle@host:
+
+SQL> SELECT name FROM sys.user$
+     WHERE ext_username IS NOT NULL
+     AND password = 'GLOBAL';
+
+no rows selected
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+Step 22
+
+Note down the location of datafiles, redo logs and control files. Also take a backup of all configuration files like listener.ora, tnsnames.ora, etc. from $ORACLE_HOME.
+
+################################################################################
+as oracle@host:
+
+SQL> SELECT name FROM v$controlfile;
+
+
+NAME
+--------------------------------------------------------------------------------
+/oradata/db/data/control01.ctl
+/oradata/db/data/control02.ctl
+
+
+
+
+SQL> SELECT file_name FROM dba_data_files;
+
+FILE_NAME
+--------------------------------------------------------------------------------
+/oradata/db/data/ssasdata22_01.dbf
+/oradata/db/data/ssasdata01.dbf
+/oradata/db/data/users01.dbf
+/oradata/db/data/undotbs01.dbf
+/oradata/db/data/sysaux01.dbf
+/oradata/db/data/system01.dbf
+
+6 rows selected.
+
+
+
+SQL> SELECT group#, member FROM v$logfile;
+
+
+
+    GROUP#
+----------
+MEMBER
+--------------------------------------------------------------------------------
+         3
+/oradata/db/data/redo03.log
+
+         2
+/oradata/db/data/redo02.log
+
+         1
+/oradata/db/data/redo01.log
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+
+
+
+################################################################################
+as oracle@host:
+
+
+
+SQL> exit 
+mkdir /oradata/backups/db/cold.2014-05-23
+
+
+
+SQL> alter database backup controlfile to trace as '/oradata/backups/db/cold.2014-05-23/crcf.trc';
+
+!cat /oradata/backups/db/cold.2014-05-23/crcf.trc
+
+
+----------
+STARTED : ???
+DONE    :  ???
+
+
+
+
+
+
+
+
+Step 24
+
+Shutdown the database.
+
+################################################################################
+as oracle@host:
+
+$ sqlplus "/as sysdba"
+SQL> shutdown immediate; 
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+Step 25
+
+
+
+- copy the initialization file from source Oracle Home to <target 11GR2 home>/dbs (<target 11GR2 home>\database on Windows)
+
+- then process in target 11GR2 directory (<target 11GR2 home>/dbs for unix and <target 11GR2 home>\database for Windows) to the needed modiciations :
+
+Comment out obsoleted parameters (Appendix A) and change all deprecated parameters (Appendix A).
+
+It is  also recommended to  remove all hidden parameters set manually prior to upgrading.
+
+* The DIAGNOSTIC_DEST initialization parameter replaces the USER_DUMP_DEST, BACKGROUND_DUMP_DEST.
+
+According to Bug 8937877, CORE_DUMP_DEST is not deprecated.
+
+Refer to the below article for understanding directory structure in 11g and DIAGNOSTIC_DEST.
+
+
+
+################################################################################
+as oracle@host:
+
+
+cp -p /oracle/product/11.2.0/dbs/initdb.ora /oracle/product/11.2.0.4.1/dbs/     
+cp -p /oracle/product/11.2.0/dbs/orapwdb /oracle/product/11.2.0.4.1/dbs/
+
+
+
+???? ИСПОЛНЯЕМ ТОЛЬКО НА 1 АПГЕЙДЕ
+cp -p /oracle/product/11.2.0/network/admin/listener.ora /oracle/product/11.2.0.4.1/network/admin/
+cp -p /oracle/product/11.2.0/network/admin/tnsnames.ora /oracle/product/11.2.0.4.1/network/admin/
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+
+
+Step 27
+
+If your operating system is UNIX then complete this step, else skip to the next step.
+################################################################################
+as oracle@host:
+
+
+vi /etc/oratab
+
+db:/oracle/product/11.2.0.4.1:Y //добавить, если этого нет
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+
+stop db
+################################################################################
+as oracle@host:
+
+
+export ORACLE_SID=db
+sqlplus "/ as sysdba"
+
+
+select * from v$instance;
+
+
+INSTANCE_NUMBER INSTANCE_NAME
+--------------- ----------------
+HOST_NAME
+----------------------------------------------------------------
+VERSION           STARTUP_T STATUS       PAR    THREAD# ARCHIVE LOG_SWITCH_WAIT
+----------------- --------- ------------ --- ---------- ------- ---------------
+LOGINS     SHU DATABASE_STATUS   INSTANCE_ROLE      ACTIVE_ST BLO
+---------- --- ----------------- ------------------ --------- ---
+              1 db
+host
+11.2.0.2.0        22-MAR-14 OPEN         NO           1 STOPPED
+ALLOWED    NO  ACTIVE            PRIMARY_INSTANCE   NORMAL    NO
+
+
+SQL> shutdown immediate;
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+
+
+
+################################################################################
+as oracle@host:
+
+cp -pr /oradata/db/* /oradata/backups/db/cold.2014-05-23/
+
+// посмотреть размеры файлов после копирования
+
+
+$ cd /oradata/backups/db
+$ du -sk cold.2014-05-23/
+
+2817611 cold.2014-05-23/
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+Upgrading Database to 11gR2
+
+Step 28
+
+
+################################################################################
+as oracle@host:
+
+as /oracle/product/11.2.0.4.1
+
+
+$ cd $ORACLE_HOME/rdbms/admin
+export ORACLE_SID=db
+
+$ sqlplus "/ as sysdba"
+
+SQL> startup UPGRADE   
+
+SQL> show parameter java
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+################################################################################
+as oracle@host:
+
+SQL> set echo on
+SQL> SPOOL /oradata/stages/db/upgrade2.log
+SQL> @catupgrd.sql ///ждем 40 минут...
+
+
+
+
+----------
+STARTED : ???
+FAILED  : ???
+
+
+
+
+
+################################################################################
+as oracle@host:
+
+
+$ sqlplus "/as sysdba"
+SQL> STARTUP
+SQL> @utlu112s.sql
+
+
+.
+Oracle Database 11.2 Post-Upgrade Status Tool           05-16-2014 16:37:08
+.
+Component                               Current      Version     Elapsed Time
+Name                                    Status       Number      HH:MM:SS
+.
+Oracle Server
+.                                         VALID      11.2.0.4.0  00:13:36
+JServer JAVA Virtual Machine
+.                                         VALID      11.2.0.4.0  00:14:02
+Oracle Workspace Manager
+.                                         VALID      11.2.0.4.0  00:00:55
+OLAP Analytic Workspace
+.                                         VALID      11.2.0.4.0  00:00:48
+OLAP Catalog
+.                                         VALID      11.2.0.4.0  00:01:07
+Oracle OLAP API
+.                                         VALID      11.2.0.4.0  00:00:34
+Oracle Enterprise Manager
+.                                         VALID      11.2.0.4.0  00:04:31
+Oracle XDK
+.                                         VALID      11.2.0.4.0  00:01:55
+Oracle Text
+.                                         VALID      11.2.0.4.0  00:00:38
+Oracle XML Database
+.                                         VALID      11.2.0.4.0  00:03:23
+Oracle Database Java Packages
+.                                         VALID      11.2.0.4.0  00:00:49
+Oracle Multimedia
+.                                         VALID      11.2.0.4.0  00:04:07
+Spatial
+.                                         VALID      11.2.0.4.0  00:03:44
+Oracle Expression Filter
+.                                         VALID      11.2.0.4.0  00:00:15
+Oracle Rules Manager
+.                                         VALID      11.2.0.4.0  00:00:14
+Oracle Application Express
+.                                         VALID     3.2.1.00.12
+Final Actions
+.                                                                00:00:00
+Total Upgrade Time: 00:50:48
+
+PL/SQL procedure successfully completed.
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+################################################################################
+as oracle@host:
+
+
+SQL> @catuppst.sql
+
+SQL> egrep -i 'ora-' /oradata/stages/db/upgrade2.log | egrep -v 'SQL>|DOC>|No errors.'
+
+
+
+SQL> egrep -i 'error|fail|ora-' /oracle/cfgtoollogs/catbundle/catbundle_PSU_SSASFT5_APPLY_2014May23_17_46_00.log ||каждый раз меняем тут лог
+
+
+SQL> @utlrp.sql
+
+
+SQL> select count(*) from dba_objects where status <> 'VALID';
+
+ COUNT(*)
+----------
+         0
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+ 
+
+
+
+################################################################################
+as oracle@host:
+
+
+sql> exit
+cd /oradata/stages/db
+$ sqlplus '/ as sysdba'
+sql> alter session set nls_language='American';
+sql> @dbupgdiag.sql
+/oradata/stages/db
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+Step 31
+
+After the upgrade
+################################################################################
+as oracle@host:
+
+
+SQL> SELECT version FROM v$timezone_file;
+
+VERSION
+----------
+14
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+Step 42
+
+Gather Fixed Object Statistics
+
+################################################################################
+as oracle@host:
+
+SQL> EXECUTE DBMS_STATS.GATHER_FIXED_OBJECTS_STATS;
+
+
+----------
+STARTED : ???
+DONE    : ???
+
+
+
+
+
+################################################################################
+as oracle@host:
+https://WAS_HOST:9043/ibm/console
+
+old:
+/IBM/WebSphere/AppServer/lib/ext/11.2.0.3/ojdbc5.jar
+
+new:
+/IBM/WebSphere/AppServer/lib/ext/11.2.0.4/ojdbc5.jar
+
+jdbc:oracle:thin:@host:1521:db
+
+----------
+STARTED : ???
+DONE    : ???

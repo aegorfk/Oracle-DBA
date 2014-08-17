@@ -1,0 +1,91 @@
+Обновление временных зон
+####################################################################################################
+as oracle@host:
+
+
+export ORACLE_SID=db
+sqlplus "/ as sysdba"
+
+
+
+SQL> select * from v$instance;
+
+INSTANCE_NUMBER INSTANCE_NAME
+--------------- ----------------
+HOST_NAME
+----------------------------------------------------------------
+VERSION           STARTUP_T STATUS       PAR    THREAD# ARCHIVE LOG_SWITCH_WAIT
+----------------- --------- ------------ --- ---------- ------- ---------------
+LOGINS     SHU DATABASE_STATUS   INSTANCE_ROLE      ACTIVE_ST BLO
+---------- --- ----------------- ------------------ --------- ---
+              1 db
+host
+11.2.0.4.0        23-MAY-14 OPEN         NO           1 STOPPED
+ALLOWED    NO  ACTIVE            PRIMARY_INSTANCE   NORMAL    NO
+
+SQL> shutdown immediate;
+SQL> startup upgrade
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+SQL> select property_name, substr(property_value, 1, 30) value from database_properties where property_name like 'DST_%' order by property_name;
+
+SQL> set serveroutput on;
+SQL> exec dbms_dst.begin_upgrade(17);
+SQL> shutdown immediate;
+
+SQL> startup
+SQL> set serveroutput on;
+SQL> spool upgrade_dst17_db.log
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+declare
+  num_of_failures number;
+begin
+  dbms_dst.upgrade_database(num_of_failures);
+  dbms_output.put_line(num_of_failures);
+  dbms_dst.end_upgrade(num_of_failures);
+  dbms_output.put_line(num_of_failures);
+end;
+/
+
+
+Проверить корректность установки, выполнив следующий запрос:
+
+SQL> select property_name, substr(property_value, 1, 30) value from database_properties where property_name like 'DST_%' order by property_name;
+В случае корректного обновления для записей DST_PRIMARY_TT_VERSION значения value должны быть только 17.
+
+PROPERTY_NAME
+------------------------------
+VALUE
+--------------------------------------------------------------------------------
+DST_PRIMARY_TT_VERSION
+17
+
+DST_SECONDARY_TT_VERSION
+0
+
+DST_UPGRADE_STATE
+NONE
+
+
+
+
+SQL> spool off;
+SQL> shutdown immediate;
+SQL> startup;
+SQL> exit
+cat /oradata/scripts/upgrade_dst17_db.log
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================

@@ -1,0 +1,268 @@
+############################################################
+ЗАДАЧА: Установить Oracle Home 12.1.0.1.0 на сервер ltpar0
+############################################################
+Гайд: http://docs.oracle.com/database/121/HIDQI/toc.htm#CEGHFFGG
+
+
+$ glance -m
+Free Mem:   9.4gb
+
+
+$/usr/contrib/bin/machinfo  | grep -i Memory
+Memory: 22478 MB (21.95 GB)
+
+
+
+//Хватает ли нам места на временные файлы
+$ df -h /tmp
+
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/mapper/vg00-tmp  1.0G  321M  704M  32% /tmp
+
+
+
+
+$/usr/sbin/swapinfo -a
+             Kb      Kb      Kb   PCT  START/      Kb
+TYPE      AVAIL    USED    FREE  USED   LIMIT RESERVE  PRI  NAME
+dev     4194304       0 4194304    0%       0       -    1  /dev/vg00/lvol2
+reserve       - 3160832 -3160832
+memory  22947968 10020864 12927104   44%
+
+
+
+################################################################################
+################################################################################
+Установить ORACLE_HOME 12.1.0.1.0
+################################################################################
+################################################################################
+
+
+
+
+5 Creating Required Operating System Groups and Users
+################################################################################
+as oracle@ftgdcrdb:
+
+
+
+
+    The Oracle Inventory group (oinstall)
+
+    The OSDBA group (dba)
+
+    The Oracle software owner (oracle)
+
+
+
+$ id oracle
+uid=555(oracle) gid=555(dba)
+
+
+
+//Проверяем настройки
+$ more /var/opt/oracle/oraInst.loc     //oraInst.loc and oratab - default location is /var/opt/oracle
+
+inventory_loc=/oradata/oraInventory
+inst_group=oinstall
+
+
+
+6 Configure Kernel Parameters
+################################################################################
+
+
+ksi_alloc_max 	32768
+executable_stack 	0
+max_thread_proc 	1024
+maxdsiz 	1073741824 (1 GB)
+maxdsiz_64bit 	2147483648 (2 GB)
+maxssiz 	134217728 (128 MB)
+maxssiz_64bit 	1073741824 (1 GB)
+maxuprc 	3686
+msgmni 	4096
+msgtql 	4096
+ncsize 	35840
+maxfiles_lim 	32767
+maxfiles 	1024
+nflocks 	4096
+ninode 	34816
+nkthread 	7184
+nproc 	4096
+semmni 	4096
+semmns 	8192
+semmnu 	4092
+semvmx 	32767
+shmmax 	1073741824
+shmmni 	4096
+shmseg 	512
+tcp_largest_anon_port 	65500
+udp_largest_anon_port 	65500
+
+
+7 Creating Required Directories
+################################################################################
+as oracle@ftgdcrdb:
+$export ORACLE_HOME=/oradata/oracle/12.1.0.1.0
+
+   //не выдавать ошибок если существует, создавать
+                                       //родительские каталоги если необходимо
+mkdir /oradata/oraInventory
+
+
+cat > /var/opt/oracle/oraInst.loc 
+inventory_loc=/oracle/oraInventory
+inst_group=oinstall
+
+
+8 Configuring the oracle User's Environment
+################################################################################
+
+
+echo $DISPLAY
+echo $SHELL            //The location of the current user's shell program.
+
+$ export DISPLAY=172.25.250.19:0.0
+
+
+xclock
+
+
+
+// Enter commands similar to the following to set the ORACLE_BASE and ORACLE_SID environment variables:
+// Bourne, Bash, or Korn shell:
+
+export ORACLE_BASE=/oradata/oracle
+
+unset ORACLE_HOME
+unset TNS_ADMIN
+
+
+10 Installing Oracle Database
+################################################################################
+
+
+cd /oradata
+/usr/local/bin/unzip hpia64_12c_database_1of2.zip
+/usr/local/bin/unzip hpia64_12c_database_2of2.zip
+
+
+cd /oradata/distr/database
+./runInstaller
+
+
+
+
+Stop any processes running in this Oracle home: 
+
+Database Control 	$ORACLE_HOME/bin/emctl stop dbconsole 
+Oracle Net listener 	$ORACLE_HOME/bin/lsnrctl stop 
+iSQL*Plus 	$ORACLE_HOME/bin/isqlplusctl stop 
+Ultra Search 	$ORACLE_HOME/bin/searchctl stop 
+
+
+
+./runInstaller -deinstall ORACLE_HOME=</oradata/oracle/12.1.0.1> "REMOVE_HOMES={</oradata/oracle/12.1.0.1>}" -checkonly
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+cd /oradata/oracle/12.1.0.1.0
+./root.sh
+
+
+
+запустила с сервера vWSRMDB1:
+scp -p /home/oracle/oraenvsetup.sh oracle@vWSRMDB1:/home/oracle
+scp -p /home/oracle/.oraenvsetup.sh oracle@vWSRMDB1:/home/oracle
+
+cat >.profile
+
+#!/bin/bash 
+# @(#)B.11.31_LR
+# Default user .profile file (/usr/bin/sh initialization).
+# Set up the terminal:
+        if [ "$TERM" = "" ]
+        then
+                eval ` tset -s -Q -m ':?hp' `
+        else
+                eval ` tset -s -Q `
+        fi
+        stty erase "^H" kill "^U" intr "^C" eof "^D"
+        stty hupcl ixon ixoff
+        tabs
+
+# NOTE: '.' is added to $PATH for compatibility reasons only. This
+#       default will be changed in a future release. If "." is not
+#       needed for compatibility it is better to omit this line.
+#       Please edit .profile according to your site requirements.
+
+# Set up the search paths:
+        PATH=$PATH:.
+
+# Set up the shell environment:
+        set -u
+        trap "echo 'logout'" 0
+
+# Set up the shell variables:
+        EDITOR=vi
+        export EDITOR
+
+export PS1=[$LOGNAME@`hostname`:'$PWD/]
+$ '
+set -o emacs
+alias __A=$(echo '\020')
+alias __B=$(echo '\016')
+alias __C=$(echo '\06')
+alias __D=$(echo '\02')
+
+export ORACLE_BASE=/oracle
+export ORACLE_HOME=/oracle/11.2.0.3
+export PATH=$PATH:$ORACLE_HOME/bin
+export LD_LIBRARY_PATH=$ORACLE_HOME/lib
+umask 022
+
+#export NLS_LANG=AMERICAN_AMERICA.CL8MSWIN1251
+
+. /home/oracle/oraenvsetup.sh
+
+export PS1=[$LOGNAME@`uname -n`:'$PWD/]
+$ '
+alias mc="midc -c"
+
+
+ ./oraenvsetup.sh
+
+
+
+
+
+
+
+
+
+
+
+

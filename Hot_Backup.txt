@@ -1,0 +1,272 @@
+1) поместить в archive log mode:
+
+SQL> select NAME,LOG_MODE from v$database;   //смотрим, находится ли бд уже в этом режиме.
+
+
+SQL> ALTER SYSTEM SET log_archive_start=TRUE SCOPE=spfile;
+SQL> ALTER SYSTEM SET log_archive_dest_1='location=/u01/oradata/MYSID/archive/' SCOPE=spfile;
+SQL> ALTER SYSTEM SET log_archive_format='arch_%t_%s.arc' SCOPE=spfile;
+SQL> SHUTDOWN IMMEDIATE;
+SQL> STARTUP MOUNT;
+SQL> ARCHIVE LOG START;
+SQL> ALTER DATABASE ARCHIVELOG;
+SQL> ALTER DATABASE OPEN;
+SQL> alter system switch logfile;
+SQL> archive log list;                       //проверить. в каком режиме находится бд
+                                             \\  %s Log sequence number
+                                             //  %t Thread number
+ 
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+2) set the db_sid to correct one: 
+
+export ORACLE_SID=db_sid
+
+
+3) login to sqlplus:
+sqlplus "/ as sysdba"
+
+
+4) verify the name of the db that you are connected to:
+SQL> select name from v$database
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+5) check if the db is in archive log made:
+ 
+SQL> select log_mode from v$database;
+ 
+5.1) if not in archive log mode another command to check:
+ 
+SQL> archive log list;
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+ 
+6) find where on disk oracle writes archive log when it is in archive log mode:
+ 
+SQL> show parameter log_archive_dest_1;
+ 
+if the value is found to be 0, that means no values will be recorded, so we need to change it 
+
+SQL> alter system set log_archive_dest_1='LOCATION=c:\database\oradata\finance\archived_logs\' 
+scope=spfile;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+ 
+7) prepare the db for hot backups:
+
+SQL> shutdown immediate; 
+
+
+ 
+8) startup the db in mount mode:
+ 
+SQL> startup mount;
+ 
+(3 startup types : nomount - just starts the instance, mount - locates the control files and open up according to the values, open - finds the datafiles from the control files and opens up the db)
+ 
+
+
+9) put the db in archive log mode:
+ 
+SQL> alter database archivelog;
+
+
+ 
+10) open the database:
+ 
+SQL> alter database open;
+
+
+ 
+11) check the status of the db:
+ 
+SQL> select log_mode from v$database;
+ 
+SQL> archive log list;
+ 
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+12) create a directory for archived log:
+ 
+check if its empty, if empty we need to switch
+ 
+SQL> alter system archive log current;
+ 
+run it 5 times < need to put / and enter > , then check the archive log dir , we will find files 
+
+
+13) make a table in the database and insert data in it
+ 
+SQL> create table employees (fname varchar(2));
+ 
+SQL> check the table
+ 
+SQL> desc employees;
+ 
+SQL> insert values
+ 
+SQL> insert into employees values ('Mica');
+ 
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+14) tablespace must be in hot backup mode: check the status
+ 
+SQL> select * from v$backup;
+ 
+if found not active, then we need to change
+ 
+we cannot put the db in hot backup mode, unless it is archive log mode
+ 
+change to hot backup mode
+ 
+SQL> alter database begin backup;
+ 
+SQL> check the status
+ 
+SQL> select * from v$backup;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+ 
+15: now we can only COPY DBF FILES:
+ 
+SQL> copy *dbf <distination location>
+
+
+ 
+16: need to take the db out to hot backup mode:
+ 
+SQL> alter database end backup;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+ 
+17) need to make another archive log switch:
+ 
+SQL> alter system archive log current;
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+ 
+18) need to copy control files now, need to do a binary backup: 
+ 
+SQL> alter database backup controlfile to '<location>\controlbackup';
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+ 
+19) insert more values to the table:
+ 
+SQL> insert into employess values ('NASH')
+ 
+SQL> COMMIT;
+ 
+make another archive log switch : alter system archive log current;
+ 
+do the same process for more values
+
+
+ ----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+
+20) backup all the archive logs to a new location
+
+21) shutdown the db and simulate a hw error, delete all the files from the database folder
+ 
+22) try to start the sqlplus and db ::: error
+ 
+23) copy all the backups to the db dir
+ 
+need to copy the control files, rename the binary backup of the control file and make the copies as needed
+ 
+24) try to mount the db, error < must use reset logs or noreset logs >
+ 
+25: need to do a recovering of the database
+ 
+SQL> shutdown
+ 
+SQL> restore the archive logs
+ 
+SQL> startup mount;
+ 
+SQL> recover database until cancel using backup controlfile;
+ 
+it will ask for a log file :
+ 
+yes for recovery
+ 
+cancel for cancelling recovery
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+ 
+26: check status: open the database in readonly
+ 
+alter database open read only;
+ 
+check the tables to see the data
+ 
+
+SQL> shutdown immediate
+ 
+SQL> shartup mount;
+ 
+recover again : 
+SQL> recover database until cancel using backup controlfile;
+ 
+if oracle is asking for a log that do into exist , all we have to do is type cancel
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
+ 
+27: open the database
+ 
+SQL> alter database open;
+ 
+need to do reset logs
+ 
+SQL> alter database open resetlogs;
+ 
+28: check the db that you are connected, check the tables
+
+
+
+----------
+STARTED : ???
+DONE    : ???
+====================================================================================================
