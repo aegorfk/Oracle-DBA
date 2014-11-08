@@ -1,0 +1,486 @@
+####################################################################################################
+####################################################################################################
+Описание работ: Выполнить работы на probft2 (vprob2db)
+1.Создать пользователя PROBESM_M151 (логин=пароль)
+Описание работ:
+2.С боя взять схему PROBESM и залить в созданную PROBESM_M151.
+####################################################################################################
+####################################################################################################
+
+
+ 1.   Setting Oracle environment: 10.2.0.4
+
+
+
+
+
+# Create directories
+##################################################
+as oracle@vgdccrdb:
+mkdir -p \
+/oradata/probe \
+/oradata/probe/scripts \
+/oradata/probe/arch \
+/oradata/probe/data \
+/oradata/probe/admin \
+/oradata/probe/admin/bdump \
+/oradata/probe/admin/adump \
+/oradata/probe/admin/cdump \
+/oradata/probe/admin/udump \
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+# Create init.ora
+##################################################
+as oracle@vgdccrdb:
+
+vi /oracle/10.2.0/dbs/initprobe.ora
+--------------------------------------------------
+*.archive_lag_target=1800
+*.audit_file_dest='/oradata/probe/admin/adump'
+*.background_dump_dest='/oradata/probe/admin/bdump'
+*.compatible='10.2.0.3.0'
+*.control_files='/oradata/probe/cf/control01.ctl','/oradata/probe/cf/control02.ctl','/oradata/probe/cf/control03.ctl'
+*.core_dump_dest='/oradata/probe/admin/cdump'
+*.db_block_size=8192
+*.db_cache_size=2G
+*.db_domain=''
+*.db_keep_cache_size=512M
+*.db_name='probe'
+*.db_recycle_cache_size=0
+*.db_unique_name='probe'
+*.fast_start_mttr_target=60
+*.instance_name='probe'
+*.java_pool_size=50M
+*.job_queue_processes=10
+*.large_pool_size=128M
+*.log_archive_dest_1='location=/oradata/probe/arch'
+*.log_archive_format='%t_%s_%r.dbf'
+*.open_cursors=1000
+*.optimizer_index_caching=0
+*.parallel_adaptive_multi_user=TRUE
+*.parallel_max_servers=4
+*.pga_aggregate_target=512M
+*.processes=500
+*.remote_login_passwordfile='EXCLUSIVE'
+*.shared_pool_size=500M
+*.streams_pool_size=30M
+*.undo_management='AUTO'
+*.undo_tablespace='UNDOTBS1'
+*.user_dump_dest='/oradata/probe/admin/udump'
+*.db_file_name_convert='/oradata/prober/data_files/data/','/oradata/probe/data/'
+--------------------------------------------------
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+# Create script for controlfiles
+##################################################
+as oracle@vgdccrdb:
+
+cat > /oradata/probe/crcf.sql
+
+--------------------------------------------------
+CREATE CONTROLFILE REUSE SET DATABASE "PROBE" RESETLOGS NOARCHIVELOG
+    MAXLOGFILES 16
+    MAXLOGMEMBERS 5
+    MAXDATAFILES 1024
+    MAXINSTANCES 1
+    MAXLOGHISTORY 2336
+LOGFILE
+  GROUP 1 '/oradata/probe/data/redo1.log'  SIZE 1024M,
+  GROUP 2 '/oradata/probe/data/redo2.log'  SIZE 1024M,
+  GROUP 3 '/oradata/probe/data/redo3.log'  SIZE 1024M,
+  GROUP 4 '/oradata/probe/data/redo4.log'  SIZE 1024M,
+  GROUP 5 '/oradata/probe/data/redo5.log'  SIZE 1024M
+DATAFILE
+  '/oradata/probe/data/system01.dbf',
+  '/oradata/probe/data/undotbs01.dbf',
+  '/oradata/probe/data/sysaux01.dbf',
+  '/oradata/probe/data/stratagem_data01.dbf',
+  '/oradata/probe/data/stratagem_data02.dbf',
+  '/oradata/probe/data/stratagem_data03.dbf',
+  '/oradata/probe/data/stratagem_data04.dbf',
+  '/oradata/probe/data/stratagem_data05.dbf',
+  '/oradata/probe/data/stratagem_data06.dbf',
+  '/oradata/probe/data/stratagem_data07.dbf',
+  '/oradata/probe/data/stratagem_data08.dbf',
+  '/oradata/probe/data/stratagem_data09.dbf',
+  '/oradata/probe/data/stratagem_data10.dbf',
+  '/oradata/probe/data/stratagem_index01.dbf',
+  '/oradata/probe/data/stratagem_index02.dbf',
+  '/oradata/probe/data/stratagem_index03.dbf',
+  '/oradata/probe/data/stratagem_index04.dbf',
+  '/oradata/probe/data/stratagem_index05.dbf',
+  '/oradata/probe/data/alfabank_index01.dbf',
+  '/oradata/probe/data/alfabank_index02.dbf',
+  '/oradata/probe/data/alfabank_index03.dbf',
+  '/oradata/probe/data/alfabank_index04.dbf',
+  '/oradata/probe/data/alfabank_index05.dbf',
+  '/oradata/probe/data/alfabank_data01.dbf',
+  '/oradata/probe/data/alfabank_data02.dbf',
+  '/oradata/probe/data/alfabank_data03.dbf',
+  '/oradata/probe/data/alfabank_data04.dbf',
+  '/oradata/probe/data/alfabank_data05.dbf',
+  '/oradata/probe/data/alfabank_data06.dbf',
+  '/oradata/probe/data/alfabank_data07.dbf',
+  '/oradata/probe/data/alfabank_data08.dbf',
+  '/oradata/probe/data/alfabank_data09.dbf',
+  '/oradata/probe/data/alfabank_data10.dbf'
+CHARACTER SET CL8MSWIN1251
+;
+
+
+
+
+
+
+# Create controlfiles
+##################################################
+as oracle@vgdccrdb:
+
+export ORACLE_SID=probe
+sqlplus "/ as sysdba"
+
+startup nomount
+@/oradata/probe/crcf.sql
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+
+# Recover db
+##################################################
+as oracle@vgdccrdb:
+
+recover database using backup controlfile until cancel;
+
+
+
+SQL> recover database using backup controlfile until cancel;
+
+ORA-00279: change 221051137953 generated at 06/18/2013 23:41:35 needed for
+thread 1
+ORA-00289: suggestion : /oradata/probe/arch/1_1373_817755402.dbf
+ORA-00280: change 221051137953 for thread 1 is in sequence #1373
+
+
+Specify log: {<RET>=suggested | filename | AUTO | CANCEL}
+CANCEL
+Media recovery cancelled.
+
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+
+
+# Check undo
+##################################################
+as oracle@vgdccrdb:
+
+
+column value format a30;
+select a.tablespace_name value from GV$DATAFILE_HEADER a where tablespace_name like 'UNDO%'
+union
+select p.value from v$parameter p where p.name like '%undo_tablespace%';
+
+
+VALUE
+------------------------------
+UNDOTBS1
+
+
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+
+# Open database
+##################################################
+as oracle@vgdccrdb:
+
+
+alter database open resetlogs;
+
+
+----------
+STARTED : 
+DONE    : 
+
+
+ALTER TABLESPACE TEMP ADD TEMPFILE '/oradata/probe/data/temp02.dbf'
+     SIZE 100M REUSE AUTOEXTEND ON NEXT 100M  MAXSIZE 32767M;
+ALTER TABLESPACE TEMP00 ADD TEMPFILE '/oradata/probe/data/temp0001.dbf'
+     SIZE 100M  REUSE AUTOEXTEND ON NEXT 100M  MAXSIZE 32767M;
+--------------------------------------------------
+
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+Check datafiles and controlfile script
+##################################################
+as oracle@vgdccrdb:
+
+egrep -i '.dbf' /oradata/probe/cf/crcf.sql | sed 's/\,//g' | xargs -i ls -la {} > /dev/null
+none
+
+egrep -i '.dbf' /oradata/probe/cf/crcf.sql | egrep -iv "redo|temp|control" | wc -l
+ls /oradata/probe/data/ | egrep -i '.dbf' | egrep -iv "redo|temp|control" | wc -l
+
+33
+33
+----------
+STARTED : 
+DONE    : 
+
+
+
+# Restart
+##################################################
+as oracle@vgdccrdb:
+
+shutdown immediate;
+startup;
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+# Check for missings
+##################################################
+as oracle@vgdccrdb:
+
+!grep -i mis /oradata/probe/admin/bdump/alert_probe.log
+----------
+STARTED : 
+DONE    : 
+
+
+
+# Change passwords
+##################################################
+as oracle@vgdccrdb:
+
+alter user sys identified by ciscopass account unlock;
+alter user system identified by cisco account unlock;
+alter user probesm identified by probesm account unlock;
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+# Create schema PROBESM_M151
+##################################################
+as oracle@vprob2db:
+
+
+export ORACLE_SID=probft2
+sqlplus "/ as sysdba"
+
+DROP TABLESPACE PROBESM_M151_DATA INCLUDING CONTENTS AND DATAFILES;
+
+CREATE TABLESPACE PROBESM_M151_DATA DATAFILE
+  '/oradata/probft2/data_files/probesm_m151_data01.dbf' SIZE 100M AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED,
+  '/oradata/probft2/data_files/probesm_m151_data02.dbf' SIZE 100M AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED,
+  '/oradata/probft2/data_files/probesm_m151_data03.dbf' SIZE 100M AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED,
+  '/oradata/probft2/data_files/probesm_m151_data04.dbf' SIZE 100M AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED
+LOGGING
+ONLINE
+PERMANENT
+EXTENT MANAGEMENT LOCAL AUTOALLOCATE
+BLOCKSIZE 8K
+SEGMENT SPACE MANAGEMENT AUTO
+FLASHBACK ON;
+
+
+
+DROP USER PROBESM_M151 CASCADE;
+
+CREATE USER PROBESM_M151
+IDENTIFIED BY PROBESM_M151
+DEFAULT TABLESPACE PROBESM_M151_DATA
+TEMPORARY TABLESPACE TEMP1
+PROFILE DEFAULT
+ACCOUNT UNLOCK;
+-- 5 Roles for PROBESM_M151
+GRANT EXP_FULL_DATABASE TO PROBESM_M151;
+GRANT RESOURCE TO PROBESM_M151;
+GRANT DBA TO PROBESM_M151;
+GRANT CONNECT TO PROBESM_M151;
+GRANT IMP_FULL_DATABASE TO PROBESM_M151;
+ALTER USER PROBESM_M151 DEFAULT ROLE ALL;
+-- 21 System Privileges for PROBESM_M151
+GRANT UPDATE ANY TABLE TO PROBESM_M151;
+GRANT SELECT ANY DICTIONARY TO PROBESM_M151;
+GRANT CREATE PROCEDURE TO PROBESM_M151;
+GRANT DROP ANY INDEX TO PROBESM_M151;
+GRANT DEBUG CONNECT SESSION TO PROBESM_M151;
+GRANT SELECT ANY SEQUENCE TO PROBESM_M151;
+GRANT DROP ANY TABLE TO PROBESM_M151;
+GRANT ALTER ANY TABLE TO PROBESM_M151;
+GRANT CREATE SESSION TO PROBESM_M151;
+GRANT CREATE ANY INDEX TO PROBESM_M151;
+GRANT CREATE TABLE TO PROBESM_M151;
+GRANT CREATE JOB TO PROBESM_M151;
+GRANT CREATE VIEW TO PROBESM_M151;
+GRANT DELETE ANY TABLE TO PROBESM_M151;
+GRANT EXECUTE ANY PROCEDURE TO PROBESM_M151;
+GRANT INSERT ANY TABLE TO PROBESM_M151;
+GRANT SELECT ANY TABLE TO PROBESM_M151;
+GRANT UNLIMITED TABLESPACE TO PROBESM_M151;
+GRANT CREATE DATABASE LINK TO PROBESM_M151;
+GRANT CREATE SEQUENCE TO PROBESM_M151;
+GRANT ALTER ANY INDEX TO PROBESM_M151;
+-- 5 Tablespace Quotas for PROBESM_M151
+ALTER USER PROBESM_M151 QUOTA UNLIMITED ON USERS;
+ALTER USER PROBESM_M151 QUOTA UNLIMITED ON ALFABANK_DATA;
+ALTER USER PROBESM_M151 QUOTA UNLIMITED ON STRATAGEM_DATA;
+ALTER USER PROBESM_M151 QUOTA UNLIMITED ON STRATAGEM_INDEX;
+ALTER USER PROBESM_M151 QUOTA UNLIMITED ON ALFABANK_INDEX;
+ALTER USER PROBESM_M151 QUOTA UNLIMITED ON PROBESM_M151_DATA;
+-- 4 Object Privileges for PROBESM_M151
+GRANT SELECT ON SYS.ALL_OBJECTS TO PROBESM_M151;
+GRANT READ, WRITE ON DIRECTORY SYS.DATAPUMP_DIR TO PROBESM_M151;
+GRANT READ, WRITE ON DIRECTORY SYS.DMP_DIR TO PROBESM_M151;
+GRANT READ, WRITE ON DIRECTORY SYS.DUMPDIR TO PROBESM_M151;
+
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+#
+##################################################
+as oracle@vgdccrdb:
+
+select 'NLS_LANG=' || nl.value || '_' || nt.value || '.' || nc.value as "NLS_LANG"
+from (SELECT value from NLS_DATABASE_PARAMETERS WHERE parameter='NLS_LANGUAGE') nl
+  , (SELECT value from NLS_DATABASE_PARAMETERS WHERE parameter='NLS_TERRITORY') nt
+  , (SELECT value from NLS_DATABASE_PARAMETERS WHERE parameter='NLS_CHARACTERSET') nc
+;
+
+NLS_LANG=AMERICAN_AMERICA.CL8MSWIN1251
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+# Start export
+##################################################
+as oracle@vprob2db:
+cd /oradata/dmp/
+
+cat > expdp.sh
+--------------------------------------------------
+export ORACLE_SID=probft2
+export NLS_LANG=AMERICAN_AMERICA.CL8MSWIN1251
+expdp system/cisco@probft2 directory=dumpdir logfile=expdpPROBESM.log network_link=probe schemas=PROBESM dumpfile=PROBESM.dmp
+--------------------------------------------------
+
+
+./expdp.sh > expdp.log
+
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+# start import
+##################################################
+as oracle@vprob2db:
+
+cd /oradata/dmp/
+cat > impdp.sh
+--------------------------------------------------
+export ORACLE_SID=probft2
+export NLS_LANG=AMERICAN_AMERICA.CL8MSWIN1251
+export ORACLE_OWNER=system
+export ORACLE_PWD=cisco
+export SCHEMA_NAME=PROBESM_M151
+export TABLESPACE_NAME=PROBESM_M151_DATA
+export DATA=`date +%Y-%m-%d`
+
+impdp \
+${ORACLE_OWNER}/${ORACLE_PWD}@${ORACLE_SID} \
+DIRECTORY=dumpdir \
+DUMPFILE=PROBESM.dmp \
+LOGFILE=impdp_$DATA.log \
+REMAP_SCHEMA=PROBESM:${SCHEMA_NAME} \
+REMAP_TABLESPACE=STRATAGEM_INDEX:${TABLESPACE_NAME} \
+REMAP_TABLESPACE=STRATAGEM_DATA:${TABLESPACE_NAME} \
+TABLE_EXISTS_ACTION=REPLACE
+--------------------------------------------------
+
+chmod +x impdp.sh
+
+
+./impdp.sh
+
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+#
+##################################################
+as oracle@vgdccrdb:
+
+Invalid objects
+Img	Name	Schema	Type	Invalid Since
+	BACKUP_MANAGER	PROBESM_M151	Package Body	07.11.2013 17:31:32
+	RESULT_TABLE_FOR_PROBE_NEW	PROBESM_M151	Procedure	07.11.2013 17:31:30
+	RESULT_TABLE_FOR_PROBE_OLD	PROBESM_M151	Procedure	07.11.2013 17:31:30
+
+
+
+----------
+STARTED : 
+DONE    : 
+
+
+
+
+
+
