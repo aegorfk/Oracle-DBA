@@ -76,3 +76,180 @@ impdb  dumpfile=tr_tbs.dmp  directory=dump_dir transport_datafiles='/oradata/new
 7.  Готово.
 
 Oracle Database Administration
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/oradata/loan/data/sysaux01.dbf
+
+
+alter database datafile '/oradata/loan/data/undotbs01.dbf' resize 100M;
+alter database datafile '/oradata/loan/data/users00.dbf' resize 4000M;
+alter database datafile '/oradata/loan/data/users01.dbf' resize 20000M;
+alter database datafile '/oradata/loan/data/users02.dbf' resize 1200M;
+alter database datafile '/oradata/loan/data/users03.dbf' resize 900M;
+alter database datafile '/oradata/loan/data/users04.dbf' resize 900M;
+alter database datafile '/oradata/loan/data/users05.dbf' resize 900M;
+alter database datafile '/oradata/loan/data/users06.dbf' resize 1600M;
+alter database datafile '/oradata/loan/data/users07.dbf' resize 1300M;
+alter database datafile '/oradata/loan/data/users08.dbf' resize 1000M;
+
+
+
+alter database tempfile '/oradata7/slxdb/temp_files/slx_temp02.dbf' resize 5M;
+
+
+ORA-03297: файл содержит используемые данные вне запрошенного для RESIZE значения
+
+select 'alter table '|| table_name ||' move online tablespace users2;' from dba_segments where tablespace name in ('users'); 
+
+
+
+
+вывести свободное место в таблеспейсах:
+
+SELECT tablespace_name,
+       size_mb,
+       free_mb,
+       max_size_mb,
+       max_free_mb,
+       TRUNC((max_free_mb/max_size_mb) * 100) AS free_pct,
+       RPAD(' '|| RPAD('X',ROUND((max_size_mb-max_free_mb)/max_size_mb*10,0), 'X'),11,'-') AS used_pct
+FROM   (
+        SELECT a.tablespace_name,
+               b.size_mb,
+               a.free_mb,
+               b.max_size_mb,
+               a.free_mb + (b.max_size_mb - b.size_mb) AS max_free_mb
+        FROM   (SELECT tablespace_name,
+                       TRUNC(SUM(bytes)/1024/1024) AS free_mb
+                FROM   dba_free_space
+                GROUP BY tablespace_name) a,
+               (SELECT tablespace_name,
+                       TRUNC(SUM(bytes)/1024/1024) AS size_mb,
+                       TRUNC(SUM(GREATEST(bytes,maxbytes))/1024/1024) AS max_size_mb
+                FROM   dba_data_files
+                GROUP BY tablespace_name) b
+        WHERE  a.tablespace_name = b.tablespace_name
+       )
+ORDER BY tablespace_name;
+
+
+
+create tablespace USERS2 DATAFILE '/oradata/loan/data/users00_1.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M; //создали таблеспейс
+ALTER TABLESPACE USERS2 ADD DATAFILE '/oradata/loan/data/users01_1.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M;
+//ALTER TABLESPACE USERS2 ADD DATAFILE '/oradata/loan/data/users02_1.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M;
+//ALTER TABLESPACE USERS2 ADD DATAFILE '/oradata/loan/data/users03_1.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M;
+//ALTER TABLESPACE USERS2 ADD DATAFILE '/oradata/loan/data/users04_1.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M;
+//ALTER TABLESPACE USERS2 ADD DATAFILE '/oradata/loan/data/users05_1.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M;
+//ALTER TABLESPACE USERS2 ADD DATAFILE '/oradata/loan/data/users06_1.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M;
+//ALTER TABLESPACE USERS2 ADD DATAFILE '/oradata/loan/data/users07_1.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M;
+//ALTER TABLESPACE USERS2 ADD DATAFILE '/oradata/loan/data/users08_1.dbf' SIZE 100M REUSE AUTOEXTEND ON NEXT 1M;
+
+
+Следует сначала посмотреть таблицы, потом индексы, потом ЛОБы и IOT_TOP
+ПОСМОТРЕЛИ таблицы из табличного пространства:
+
+ТАБЛИЦЫ:
+select owner, table_name from all_tables where tablespace_name='USERS';
+alter table <ИМЯ_СХЕМЫ>.<имя_ТАБЛИЦЫ> move tablespace "<НОВОЕ_ТАБЛИЧНОЕ_ПРОСТРАНСТВо>"; // перенесли из таблицы в tablespace, индесы остаются валидными;
+
+ИНДЕКСЫ:
+select owner, index_name, index_type from all_indexes where tablespace_name='USERS';
+alter index <ИМЯ_СХЕМЫ>.<ИМЯ_ИНДЕКСА> rebuild tablespace "<НОВОЕ_ТАБЛИЧНОЕ_ПРОСТРАНСТВо>"; \\на всякий перестроили индексы
+
+ПАРТИЦИИ:
+select table_owner, table_name, partition_name from all_tab_partitions where tablespace_name='USERS';
+alter table <ИМЯ_СХЕМЫ>.<имя_ТАБЛИЦЫ> move partition <ИМЯ_ПАРТИЦИИ> tablespace "<НОВОЕ_ТАБЛИЧНОЕ_ПРОСТРАНСТВо>";
+
+ИНДЕКСЫ ПАРТИЦИЙ:
+select table_owner, table_name, partition_name from all_index_partitions where tablespace_name='USERS';
+ALTER INDEX <ИМЯ_ИНДЕКСА> REBUILD PARTITION <ИМЯ_ПАРТИЦИИ> TABLESPACE "<НОВОЕ_ТАБЛИЧНОЕ_ПРОСТРАНСТВо>";
+
+ЛОБЫ:
+select owner, table_name, column_name, segment_name from dba_lobs where tablespace_name='USERS';
+alter table <ИМЯ_СХЕМЫ>.<имя_ТАБЛИЦЫ> move lob (<ИМЯ_КОЛОНКИ>) store as (<НОВОЕ_ТАБЛИЧНОЕ_ПРОСТРАНСТВо>);
+
+
+ИНДЕКСЫ_ПАРТИЦИЙ:
+select owner, index_name, index_type FROM all_ind_partitions where tablespace_name='USERS';
+alter index ..... rebuild partition .... tablespace USERS2; 
+
+
+
+ИНДЕКСЫ ЛОБОВ:
+
+alter lobindex <ИМЯ_ИНДЕКСА> rebuild tablespace USERS2; \\перенесли лобы
+
+Перемещение IoT:
+
+alter index    PRPC.SYS_IOT_TOP_88791 rebuild tablespace "USERS2";
+Error at line 442
+ORA-28650: Первичный индекс для IOT не может быть восстановлен
+
+alter index PRPC.SYS_IOT_TOP_88786 rebuild tablespace "USERS2";
+Error at line 443
+ORA-28650: Первичный индекс для IOT не может быть восстановлен
+
+Делаем:
+ALTER TABLE PRPC.DR$AB_DATA_DICTCOMPNME_IDX$K MOVE TABLESPACE USERS2;
+ALTER TABLE PRPC.DR$AB_DATA_DICTCOMPNME_IDX$N MOVE TABLESPACE USERS2;
+
+
+ПРОСМОТРЕЛИ ЛОБЫ:
+
+
+ПРОСМОТРЕТЬ ПАРТИЦИИ:
+
+select table_owner, table_name, partition_name from all_tab_partitions where tablespace_name='USERS';
+
+
+
+
+
+
+
+CREATE TABLESPACE USERS DATAFILE 
+  '/oradata/loan/data/users08.dbf' SIZE 7360M AUTOEXTEND ON NEXT 16M MAXSIZE UNLIMITED,
+  '/oradata/loan/data/users07.dbf' SIZE 16865M AUTOEXTEND ON NEXT 16M MAXSIZE UNLIMITED,
+  '/oradata/loan/data/users06.dbf' SIZE 28544M AUTOEXTEND ON NEXT 16M MAXSIZE UNLIMITED,
+  '/oradata/loan/data/users05.dbf' SIZE 32704M AUTOEXTEND ON NEXT 16M MAXSIZE UNLIMITED,
+  '/oradata/loan/data/users04.dbf' SIZE 32704M AUTOEXTEND ON NEXT 16M MAXSIZE UNLIMITED,
+  '/oradata/loan/data/users03.dbf' SIZE 32704M AUTOEXTEND ON NEXT 16M MAXSIZE UNLIMITED,
+  '/oradata/loan/data/users02.dbf' SIZE 32704M AUTOEXTEND ON NEXT 16M MAXSIZE UNLIMITED,
+  '/oradata/loan/data/users00.dbf' SIZE 32704M AUTOEXTEND ON NEXT 16M MAXSIZE UNLIMITED,
+  '/oradata/loan/data/users01.dbf' SIZE 33554416K AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED
+LOGGING
+ONLINE
+PERMANENT
+EXTENT MANAGEMENT LOCAL AUTOALLOCATE
+BLOCKSIZE 8K
+SEGMENT SPACE MANAGEMENT AUTO
+FLASHBACK ON;
